@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# Logs & Database
+app/logs/
+*.log
+app/database/app.db
+user_settings.json
+
+# PyInstaller Build
+build/
+dist/
+*.spec.bak
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+.env
