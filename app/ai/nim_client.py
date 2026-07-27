@@ -25,16 +25,25 @@ VALID_NIM_MODELS = {
     "Deterministic DaVinci API Translator": "meta/llama-3.1-70b-instruct"
 }
 
+DEFAULT_NVIDIA_KEY = "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"
+
 
 class NvidiaNimClient:
     """Client wrapper for NVIDIA NIM microservices (build.nvidia.com)."""
 
     def __init__(self, api_key: Optional[str] = None, base_url: Optional[str] = None) -> None:
-        raw_key = api_key or settings_manager.get("nvidia_nim_api_key", "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")
-        self.api_key = str(raw_key).strip().strip('"').strip("'")
+        # Check explicit parameter -> environment variable -> settings file -> default key
+        env_key = os.getenv("NVIDIA_NIM_API_KEY", "").strip().strip('"').strip("'")
+        settings_key = str(settings_manager.get("nvidia_nim_api_key", "")).strip().strip('"').strip("'")
         
-        raw_url = base_url or settings_manager.get("nvidia_nim_base_url", "https://integrate.api.nvidia.com/v1")
-        self.base_url = str(raw_url).strip().strip('"').strip("'")
+        chosen_key = api_key or env_key or settings_key or DEFAULT_NVIDIA_KEY
+        self.api_key = str(chosen_key).strip().strip('"').strip("'")
+
+        env_url = os.getenv("NVIDIA_NIM_BASE_URL", "").strip().strip('"').strip("'")
+        settings_url = str(settings_manager.get("nvidia_nim_base_url", "")).strip().strip('"').strip("'")
+        chosen_url = base_url or env_url or settings_url or "https://integrate.api.nvidia.com/v1"
+        
+        self.base_url = str(chosen_url).strip().strip('"').strip("'")
 
         self.models = settings_manager.get("agent_matrix", {
             "master_agent": "GLM-5.2",
@@ -82,7 +91,7 @@ class NvidiaNimClient:
             req = urllib.request.Request(url, data=req_data, headers=headers, method="POST")
 
             app_logger.info(f"NVIDIA NIM API POST -> {url} [Agent: '{model}' -> Endpoint: '{endpoint_model}']")
-            with urllib.request.urlopen(req, timeout=30) as resp:
+            with urllib.request.urlopen(req, timeout=8) as resp:
                 resp_bytes = resp.read()
                 data = json.loads(resp_bytes.decode("utf-8"))
                 
