@@ -10,6 +10,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from typing import Optional, Dict, Any, Callable, List
 from app.models.resolve_models import ResolveState, ProjectInfo, TimelineInfo, MediaPoolInfo
 from app.models.timeline_models import TimelineStructure, TrackInfo, ClipItem, TimelineMarker
+from app.models.mediapool_models import MediaPoolStructure, MediaBin, MediaAsset
 from app.services.logger_service import app_logger
 
 BRIDGE_PORT = 18888
@@ -126,6 +127,63 @@ def parse_timeline_structure(ts_data: Dict[str, Any]) -> TimelineStructure:
     )
 
 
+def parse_bin_recursive(b_data: Dict[str, Any]) -> MediaBin:
+    """Helper to convert JSON bin structure recursively."""
+    if not b_data:
+        return MediaBin()
+
+    assets: List[MediaAsset] = []
+    for a in b_data.get("assets", []):
+        assets.append(
+            MediaAsset(
+                media_id=a.get("media_id", ""),
+                name=a.get("name", "Untitled Asset"),
+                asset_type=a.get("asset_type", "Video"),
+                file_path=a.get("file_path", "N/A"),
+                resolution=a.get("resolution", "1920x1080"),
+                fps=str(a.get("fps", "24.0")),
+                duration=a.get("duration", "00:00:00:00"),
+                duration_frames=a.get("duration_frames", 0),
+                video_codec=a.get("video_codec", "H.264"),
+                audio_codec=a.get("audio_codec", "AAC"),
+                audio_channels=int(a.get("audio_channels", 2)),
+                file_size=a.get("file_size", "N/A"),
+                date_modified=a.get("date_modified", "N/A"),
+                clip_color=a.get("clip_color", "Default"),
+                flag_color=a.get("flag_color", "None"),
+                scene=a.get("scene", ""),
+                shot=a.get("shot", ""),
+                take=a.get("take", ""),
+                good_take=bool(a.get("good_take", False)),
+                comments=a.get("comments", ""),
+                bin_name=a.get("bin_name", "Master")
+            )
+        )
+
+    subfolders: List[MediaBin] = []
+    for sub in b_data.get("subfolders", []):
+        subfolders.append(parse_bin_recursive(sub))
+
+    return MediaBin(
+        bin_id=b_data.get("bin_id", "bin_master"),
+        name=b_data.get("name", "Master"),
+        folder_path=b_data.get("folder_path", "Master"),
+        subfolders=subfolders,
+        assets=assets
+    )
+
+
+def parse_mediapool_structure(mp_data: Dict[str, Any]) -> MediaPoolStructure:
+    """Helper to convert JSON media_pool_structure into MediaPoolStructure object graph."""
+    if not mp_data:
+        return MediaPoolStructure()
+
+    root_b_data = mp_data.get("root_bin", {})
+    root_bin = parse_bin_recursive(root_b_data)
+
+    return MediaPoolStructure(root_bin=root_bin)
+
+
 class BridgeRequestHandler(BaseHTTPRequestHandler):
     """Handles HTTP POST state sync requests from DaVinciPiloT_Bridge inside Resolve."""
 
@@ -191,6 +249,10 @@ class BridgeRequestHandler(BaseHTTPRequestHandler):
                 ts_data = data.get("timeline_structure", {})
                 timeline_struct = parse_timeline_structure(ts_data)
 
+                # Parse MediaPoolStructure
+                mp_struct_data = data.get("media_pool_structure", {})
+                mediapool_struct = parse_mediapool_structure(mp_struct_data)
+
                 state = ResolveState(
                     is_connected=True,
                     resolve_version=data.get("resolve_version", "21.0"),
@@ -199,13 +261,14 @@ class BridgeRequestHandler(BaseHTTPRequestHandler):
                     timeline=timeline,
                     media_pool=media_pool,
                     timeline_structure=timeline_struct,
+                    media_pool_structure=mediapool_struct,
                     error_message=None
                 )
 
                 app_logger.info(
                     f"Received live state from DaVinci PiloT Bridge: Project='{project.name}', "
-                    f"Timeline='{timeline.name}' ({timeline_struct.total_clips} clips across "
-                    f"{len(timeline_struct.video_tracks)}V / {len(timeline_struct.audio_tracks)}A tracks)"
+                    f"Timeline='{timeline.name}' ({timeline_struct.total_clips} clips), "
+                    f"MediaPool ({mediapool_struct.total_assets} assets in Bins)"
                 )
 
                 # Invoke UI update callback

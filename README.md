@@ -26,6 +26,12 @@
 - **Timeline Markers Panel**: Detailed table of timeline markers displaying frame indices, timecodes, color badges, marker names, and notes.
 - **Real-Time Clip Filter Engine**: Instant client-side search box and track filter dropdowns (All Tracks, Video Only, Audio Only).
 
+### Milestone 4: Media Pool & Asset Manager
+- **Hierarchical Bin Folder Tree**: Interactive `QTreeWidget` folder sidebar displaying Media Pool Bins (`Master`, `B-Roll`, `Audio`, `SFX`...) with total clip counts.
+- **Master Asset Table**: Searchable and filterable table displaying Asset Name, Type, Resolution, FPS, Duration, Video Codec, Audio Codec, and Good Take badges.
+- **Technical & Production Asset Inspector**: Right sidebar displaying full technical specifications (Codecs, Bitrate, Resolution, Channels, File Size, Date Modified) and production metadata (Scene, Shot, Take, Comments, Good Take status).
+- **Multi-Criteria Asset Filters**: Instant search box (name, path, codec, scene/shot/take), asset type dropdown ("All Types", "Video", "Audio", "Images", "Timelines"), and "⭐ Good Takes Only" toggle.
+
 ---
 
 ## 🛠️ Tech Stack
@@ -61,6 +67,7 @@ Davinci-PiloT/
 │   ├── config/config_loader.py
 │   ├── database/db_manager.py
 │   ├── models/
+│   │   ├── mediapool_models.py
 │   │   ├── resolve_models.py
 │   │   └── timeline_models.py
 │   ├── services/
@@ -75,6 +82,7 @@ Davinci-PiloT/
 │   │   │   └── toolbar.py
 │   │   ├── views/
 │   │   │   ├── dashboard_view.py
+│   │   │   ├── mediapool_view.py
 │   │   │   ├── settings_view.py
 │   │   │   └── timeline_view.py
 │   │   ├── main_window.py
@@ -85,6 +93,7 @@ Davinci-PiloT/
 │   ├── test_ai.py
 │   ├── test_config.py
 │   ├── test_database.py
+│   ├── test_mediapool.py
 │   ├── test_resolve_service.py
 │   ├── test_settings.py
 │   ├── test_timeline.py

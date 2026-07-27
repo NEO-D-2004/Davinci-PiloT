@@ -68,6 +68,7 @@ class MediaPoolInfo:
 
 
 from app.models.timeline_models import TimelineStructure
+from app.models.mediapool_models import MediaPoolStructure
 
 
 @dataclass
@@ -81,4 +82,6 @@ class ResolveState:
     timeline: TimelineInfo = field(default_factory=TimelineInfo)
     media_pool: MediaPoolInfo = field(default_factory=MediaPoolInfo)
     timeline_structure: Optional[TimelineStructure] = None
+    media_pool_structure: Optional[MediaPoolStructure] = None
+
 

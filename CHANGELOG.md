@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - Milestone 4: Media Pool & Asset Manager (2026-07-28)
+
+### Added
+- Media Pool Data Models (`mediapool_models.py`): `MediaAsset`, `MediaBin`, `MediaPoolStructure`.
+- Recursive Media Pool Bins and Clip Metadata extractor in `DaVinciPiloT_Bridge.py` extracting Bins, Subfolders, Clip Properties (File Path, Resolution, FPS, Duration, Video/Audio Codecs, Channels, File Size, Date Modified), and User Metadata (Scene, Shot, Take, Good Take, Comments).
+- Media Pool Structure JSON parser (`parse_mediapool_structure`) in `bridge_server.py`.
+- Interactive `MediaPoolView` UI component featuring:
+  - **Hierarchical Bin Folder Tree**: Folder tree sidebar displaying Bins (`Master`, `B-Roll`, `Audio`...) with clip counters.
+  - **Master Asset Table**: Searchable and filterable table displaying Asset Name, Type, Resolution, FPS, Duration, Video Codec, Audio Codec, and Good Take badges.
+  - **Asset Inspector Sidebar**: Right panel rendering technical specs and production metadata notes.
+  - **Multi-Criteria Asset Filters**: Instant search box, type filter dropdown ("All Asset Types", "Video Only", "Audio Only", "Images Only", "Timelines Only"), and "⭐ Good Takes Only" toggle.
+- Tab bar integration in `MainWindow` featuring **📁 Media Pool Manager**.
+- Comprehensive unit test suite for Media Pool models, JSON parser, and UI view rendering (`tests/test_mediapool.py`).
+
+---
+
 ## [0.3.0] - Milestone 3: Timeline Explorer (2026-07-28)
 
 ### Added

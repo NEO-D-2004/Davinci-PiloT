@@ -89,7 +89,7 @@ try:
                             "note": m_info.get("note", ""),
                             "duration": int(m_info.get("duration", 1))
                         })
-                except Exception as m_err:
+                except Exception:
                     pass
 
                 # Extract Video Tracks & Clips
@@ -107,7 +107,6 @@ try:
                         l_off = item.GetLeftOffset() or 0
                         r_off = item.GetRightOffset() or 0
 
-                        # Media Pool Item Source Path
                         source_path = "N/A"
                         try:
                             mp_item = item.GetMediaPoolItem()
@@ -117,7 +116,6 @@ try:
                         except Exception:
                             pass
 
-                        # Flag & Color
                         flag_color = "None"
                         try:
                             flags = item.GetFlags()
@@ -212,14 +210,108 @@ try:
                         "clips": clips_list
                     })
 
-            # Extract Media Pool Info
+            # Extract Media Pool Structure & Assets
             mp = proj.GetMediaPool()
             root_folder = mp.GetRootFolder() if mp else None
-            root_name = root_folder.GetName() if root_folder else "Master"
-            clips_count = 0
-            if root_folder:
-                clips = root_folder.GetClipList()
-                clips_count = len(clips) if clips else 0
+
+            def parse_folder_recursive(folder, current_path="Master"):
+                if not folder:
+                    return {"bin_id": "root", "name": "Master", "folder_path": "Master", "subfolders": [], "assets": []}
+
+                bin_name = folder.GetName() or "Master"
+                folder_path = f"{current_path}/{bin_name}" if current_path != "Master" else bin_name
+
+                # Extract MediaPoolItems in Folder
+                clips = folder.GetClipList() or []
+                assets_list = []
+
+                for idx, clip in enumerate(clips, 1):
+                    clip_name = clip.GetName() or f"Asset {idx}"
+                    props = {}
+                    meta = {}
+
+                    try:
+                        props = clip.GetClipProperty() or {}
+                    except Exception:
+                        pass
+
+                    try:
+                        meta = clip.GetMetadata() or {}
+                    except Exception:
+                        pass
+
+                    asset_type = props.get("Type") or props.get("Format") or "Video"
+                    file_path = props.get("File Path") or "N/A"
+                    resolution = props.get("Resolution") or f"{res_w}x{res_h}"
+                    fps_val = props.get("FPS") or str(fps_str)
+                    duration = props.get("Duration") or "00:00:00:00"
+                    v_codec = props.get("Video Codec") or "H.264"
+                    a_codec = props.get("Audio Codec") or "AAC"
+                    
+                    try:
+                        a_ch = int(props.get("Audio Channels", 2))
+                    except Exception:
+                        a_ch = 2
+
+                    scene = meta.get("Scene") or ""
+                    shot = meta.get("Shot") or ""
+                    take = meta.get("Take") or ""
+                    good_take = str(meta.get("Good Take", "False")).lower() in ("true", "1", "yes")
+                    comments = meta.get("Comments") or ""
+
+                    flag_col = "None"
+                    try:
+                        flags = clip.GetFlags()
+                        if flags:
+                            flag_col = str(flags[0]) if isinstance(flags, list) else str(flags)
+                    except Exception:
+                        pass
+
+                    clip_col = "Default"
+                    try:
+                        clip_col = clip.GetClipColor() or "Default"
+                    except Exception:
+                        pass
+
+                    assets_list.append({
+                        "media_id": f"m_{folder_path}_{idx}",
+                        "name": clip_name,
+                        "asset_type": asset_type,
+                        "file_path": file_path,
+                        "resolution": resolution,
+                        "fps": str(fps_val),
+                        "duration": duration,
+                        "duration_frames": 0,
+                        "video_codec": v_codec,
+                        "audio_codec": a_codec,
+                        "audio_channels": a_ch,
+                        "file_size": props.get("File Size", "N/A"),
+                        "date_modified": props.get("Date Modified", "N/A"),
+                        "clip_color": clip_col,
+                        "flag_color": flag_col,
+                        "scene": scene,
+                        "shot": shot,
+                        "take": take,
+                        "good_take": good_take,
+                        "comments": comments,
+                        "bin_name": bin_name
+                    })
+
+                # Recursively parse subfolders
+                subfolders_list = []
+                sub_folders = folder.GetSubFolderList() or []
+                for sub in sub_folders:
+                    subfolders_list.append(parse_folder_recursive(sub, folder_path))
+
+                return {
+                    "bin_id": f"bin_{folder_path}",
+                    "name": bin_name,
+                    "folder_path": folder_path,
+                    "subfolders": subfolders_list,
+                    "assets": assets_list
+                }
+
+            root_bin_data = parse_folder_recursive(root_folder)
 
             # Build Full Payload
             payload = {
@@ -242,9 +334,9 @@ try:
                     "is_active": (tl is not None)
                 },
                 "media_pool": {
-                    "root_folder_name": root_name,
-                    "subfolders_count": 0,
-                    "total_clips_count": clips_count
+                    "root_folder_name": root_bin_data.get("name", "Master"),
+                    "subfolders_count": len(root_bin_data.get("subfolders", [])),
+                    "total_clips_count": len(root_bin_data.get("assets", []))
                 },
                 "timeline_structure": {
                     "name": tl_name,
@@ -255,6 +347,9 @@ try:
                     "video_tracks": video_tracks_data,
                     "audio_tracks": audio_tracks_data,
                     "markers": timeline_markers_data
+                },
+                "media_pool_structure": {
+                    "root_bin": root_bin_data
                 }
             }
 
@@ -265,7 +360,7 @@ try:
             try:
                 with urllib.request.urlopen(req, timeout=3) as resp:
                     if resp.status == 200:
-                        print(f"[DaVinci PiloT Bridge] SUCCESS! Synced Timeline Structure ({total_clips_count} clips across {v_tracks_count}V / {a_tracks_count}A tracks) -> DaVinci PiloT!")
+                        print(f"[DaVinci PiloT Bridge] SUCCESS! Synced Timeline & Media Pool Structure -> DaVinci PiloT!")
                     else:
                         print(f"[DaVinci PiloT Bridge] Server status: {resp.status}")
             except Exception as net_err:
