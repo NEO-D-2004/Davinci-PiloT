@@ -1,10 +1,10 @@
 """
 NVIDIA NIM Client Module for DaVinci PiloT.
 Interacts with build.nvidia.com free endpoints using OpenAI-compatible API protocol.
-Supports specialized models: GLM-5.2, MiniMax M3, Nemotron-3 Ultra, Nemotron OCR v2, Nemotron ASR, and Nemotron Embed.
+Supports 7 specialized agent models: GLM-5.2, MiniMax M3, Nemotron ASR, Nemotron OCR v2, Nemotron-3 Ultra 550B, and Nemotron Embed 1B.
 """
 
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 from app.settings import settings_manager
 from app.services.logger_service import app_logger
 
@@ -17,13 +17,14 @@ class NvidiaNimClient:
         self.base_url = base_url or settings_manager.get(
             "nvidia_nim_base_url", "https://integrate.api.nvidia.com/v1"
         )
-        self.models = settings_manager.get("nim_models", {
-            "master_planner": "GLM-5.2",
-            "vision": "MiniMax M3",
-            "reasoning": "Nemotron-3 Ultra 550B",
-            "ocr": "Nemotron OCR v2",
-            "asr": "Nemotron ASR Streaming",
-            "embeddings": "Nemotron Embed 1B"
+        self.models = settings_manager.get("agent_matrix", {
+            "master_agent": "GLM-5.2",
+            "vision_agent": "MiniMax M3",
+            "speech_agent": "Nemotron ASR Streaming",
+            "ocr_agent": "Nemotron OCR v2",
+            "story_agent": "GLM-5.2",
+            "editing_planner": "Nemotron-3 Ultra 550B",
+            "resolve_agent": "Deterministic DaVinci API Translator"
         })
 
     def is_configured(self) -> bool:
@@ -31,8 +32,8 @@ class NvidiaNimClient:
         return bool(self.api_key and self.api_key.strip())
 
     def get_model_for_role(self, role: str) -> str:
-        """Return designated NVIDIA NIM model for specific agent task role."""
-        return self.models.get(role.lower(), self.models.get("master_planner", "GLM-5.2"))
+        """Return designated NVIDIA NIM model for specific agent role."""
+        return self.models.get(role.lower(), self.models.get("master_agent", "GLM-5.2"))
 
     def get_summary(self) -> Dict[str, Any]:
         """Return client state summary."""

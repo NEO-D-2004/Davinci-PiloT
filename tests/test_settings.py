@@ -13,7 +13,7 @@ def test_settings_manager_load_save(tmp_path: Path):
     # Verify defaults
     assert manager.get("theme") == "dark"
     assert manager.get("ai_provider") == "nvidia_nim"
-    assert manager.get("nim_models")["master_planner"] == "GLM-5.2"
+    assert manager.get("agent_matrix")["master_agent"] == "GLM-5.2"
 
     # Modify setting
     manager.set("ai_provider", "local_llm")

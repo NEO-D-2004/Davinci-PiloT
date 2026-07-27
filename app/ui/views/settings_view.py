@@ -1,13 +1,13 @@
 """
 Settings Dialog View for DaVinci PiloT.
-Allows editing app settings, NVIDIA NIM API keys (build.nvidia.com), multi-agent model mappings, DaVinci Resolve paths, and theme options.
+Allows editing app settings, NVIDIA NIM API keys (build.nvidia.com), 7-Agent Model Mappings, Frame Sampling parameters, and Resolve paths.
 """
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QFormLayout, QLabel,
-    QLineEdit, QComboBox, QCheckBox, QPushButton, QTabWidget, QWidget, QFileDialog, QGroupBox
+    QLineEdit, QComboBox, QCheckBox, QPushButton, QTabWidget, QWidget, QFileDialog, QGroupBox, QDoubleSpinBox
 )
 from app.settings import settings_manager
 
@@ -20,7 +20,7 @@ class SettingsDialog(QDialog):
     def __init__(self, parent: QWidget = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Settings - DaVinci PiloT")
-        self.setFixedSize(620, 520)
+        self.setFixedSize(680, 560)
         self._init_ui()
         self._load_current_settings()
 
@@ -30,20 +30,19 @@ class SettingsDialog(QDialog):
 
         tab_widget = QTabWidget(self)
 
-        # Tab 1: NVIDIA NIM AI Configuration
+        # Tab 1: NVIDIA NIM 7-Agent Architecture
         ai_tab = QWidget()
         ai_layout = QVBoxLayout(ai_tab)
         ai_layout.setContentsMargins(16, 16, 16, 16)
-        ai_layout.setSpacing(12)
+        ai_layout.setSpacing(10)
 
-        # Header Info Label
-        info_lbl = QLabel("NVIDIA NIM Microservices (build.nvidia.com Free Endpoints)", ai_tab)
+        info_lbl = QLabel("NVIDIA NIM Microservices (build.nvidia.com 7-Agent Pipeline)", ai_tab)
         info_lbl.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
         info_lbl.setStyleSheet("color: #74C7EC;")
         ai_layout.addWidget(info_lbl)
 
         form_layout = QFormLayout()
-        form_layout.setSpacing(10)
+        form_layout.setSpacing(8)
 
         self.combo_ai_provider = QComboBox()
         self.combo_ai_provider.addItems(["nvidia_nim", "gemini", "openai", "local_llm"])
@@ -61,41 +60,73 @@ class SettingsDialog(QDialog):
 
         ai_layout.addLayout(form_layout)
 
-        # Specialized Multi-Agent Models Group Box
-        models_group = QGroupBox("NVIDIA NIM Multi-Agent Routing Matrix", ai_tab)
+        # Specialized 7-Agent Model Matrix Group Box
+        models_group = QGroupBox("Specialized 7-Agent Routing Matrix", ai_tab)
         models_form = QFormLayout(models_group)
-        models_form.setSpacing(8)
+        models_form.setSpacing(6)
 
-        self.input_model_planner = QLineEdit()
-        self.input_model_planner.setPlaceholderText("GLM-5.2")
+        self.input_agent_master = QLineEdit()
+        self.input_agent_master.setPlaceholderText("GLM-5.2")
 
-        self.input_model_vision = QLineEdit()
-        self.input_model_vision.setPlaceholderText("MiniMax M3")
+        self.input_agent_vision = QLineEdit()
+        self.input_agent_vision.setPlaceholderText("MiniMax M3")
 
-        self.input_model_reasoning = QLineEdit()
-        self.input_model_reasoning.setPlaceholderText("Nemotron-3 Ultra 550B")
+        self.input_agent_speech = QLineEdit()
+        self.input_agent_speech.setPlaceholderText("Nemotron ASR Streaming")
 
-        self.input_model_ocr = QLineEdit()
-        self.input_model_ocr.setPlaceholderText("Nemotron OCR v2")
+        self.input_agent_ocr = QLineEdit()
+        self.input_agent_ocr.setPlaceholderText("Nemotron OCR v2")
 
-        self.input_model_asr = QLineEdit()
-        self.input_model_asr.setPlaceholderText("Nemotron ASR Streaming")
+        self.input_agent_story = QLineEdit()
+        self.input_agent_story.setPlaceholderText("GLM-5.2")
 
-        self.input_model_embeddings = QLineEdit()
-        self.input_model_embeddings.setPlaceholderText("Nemotron Embed 1B")
+        self.input_agent_planner = QLineEdit()
+        self.input_agent_planner.setPlaceholderText("Nemotron-3 Ultra 550B")
 
-        models_form.addRow("Master & Planning Agent:", self.input_model_planner)
-        models_form.addRow("Vision Understanding Agent:", self.input_model_vision)
-        models_form.addRow("Long Reasoning Agent:", self.input_model_reasoning)
-        models_form.addRow("OCR Recognition Agent:", self.input_model_ocr)
-        models_form.addRow("Speech Recognition (ASR):", self.input_model_asr)
-        models_form.addRow("Semantic Embeddings:", self.input_model_embeddings)
+        self.input_agent_resolve = QLineEdit()
+        self.input_agent_resolve.setPlaceholderText("Deterministic DaVinci API Translator")
+        self.input_agent_resolve.setReadOnly(True)
+
+        models_form.addRow("1. Master Agent (Orchestration):", self.input_agent_master)
+        models_form.addRow("2. Vision Agent (Sampled Frames):", self.input_agent_vision)
+        models_form.addRow("3. Speech Agent (ASR & Speakers):", self.input_agent_speech)
+        models_form.addRow("4. OCR Agent (Slides & Text):", self.input_agent_ocr)
+        models_form.addRow("5. Story Agent (Multi-Modal Arc):", self.input_agent_story)
+        models_form.addRow("6. Editing Planner (Timeline Plan):", self.input_agent_planner)
+        models_form.addRow("7. Resolve Agent (API Executor):", self.input_agent_resolve)
 
         ai_layout.addWidget(models_group)
 
-        tab_widget.addTab(ai_tab, "🟢 NVIDIA NIM Multi-Agent")
+        tab_widget.addTab(ai_tab, "🤖 7-Agent Architecture")
 
-        # Tab 2: Resolve Integration Settings
+        # Tab 2: Frame Sampling & Extraction Strategy
+        sampling_tab = QWidget()
+        sampling_layout = QFormLayout(sampling_tab)
+        sampling_layout.setContentsMargins(16, 16, 16, 16)
+        sampling_layout.setSpacing(12)
+
+        s_info = QLabel("FFmpeg Frame & Audio Sampling Strategy (Prevents Sending Raw Video to LLMs)", sampling_tab)
+        s_info.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        s_info.setStyleSheet("color: #89B4FA;")
+        sampling_layout.addRow(s_info)
+
+        self.spin_fps = QDoubleSpinBox()
+        self.spin_fps.setRange(0.1, 30.0)
+        self.spin_fps.setSingleStep(0.5)
+        self.spin_fps.setValue(1.0)
+        self.spin_fps.setSuffix(" FPS")
+
+        self.chk_detect_scenes = QCheckBox("Automatically detect scene boundaries for keyframe extraction")
+        self.input_ffmpeg = QLineEdit()
+        self.input_ffmpeg.setPlaceholderText("ffmpeg")
+
+        sampling_layout.addRow("Frame Extraction Rate:", self.spin_fps)
+        sampling_layout.addRow("Scene Boundary Detection:", self.chk_detect_scenes)
+        sampling_layout.addRow("FFmpeg Binary Path:", self.input_ffmpeg)
+
+        tab_widget.addTab(sampling_tab, "🎞️ Frame Sampling")
+
+        # Tab 3: Resolve Integration Settings
         resolve_tab = QWidget()
         resolve_layout = QFormLayout(resolve_tab)
         resolve_layout.setContentsMargins(16, 16, 16, 16)
@@ -115,7 +146,7 @@ class SettingsDialog(QDialog):
 
         tab_widget.addTab(resolve_tab, "🎬 DaVinci Resolve")
 
-        # Tab 3: General Settings
+        # Tab 4: General Settings
         gen_tab = QWidget()
         gen_layout = QFormLayout(gen_tab)
         gen_layout.setContentsMargins(16, 16, 16, 16)
@@ -156,13 +187,18 @@ class SettingsDialog(QDialog):
         self.input_nvidia_key.setText(settings_manager.get("nvidia_nim_api_key", ""))
         self.input_nvidia_url.setText(settings_manager.get("nvidia_nim_base_url", "https://integrate.api.nvidia.com/v1"))
         
-        nim_models = settings_manager.get("nim_models", {})
-        self.input_model_planner.setText(nim_models.get("master_planner", "GLM-5.2"))
-        self.input_model_vision.setText(nim_models.get("vision", "MiniMax M3"))
-        self.input_model_reasoning.setText(nim_models.get("reasoning", "Nemotron-3 Ultra 550B"))
-        self.input_model_ocr.setText(nim_models.get("ocr", "Nemotron OCR v2"))
-        self.input_model_asr.setText(nim_models.get("asr", "Nemotron ASR Streaming"))
-        self.input_model_embeddings.setText(nim_models.get("embeddings", "Nemotron Embed 1B"))
+        matrix = settings_manager.get("agent_matrix", {})
+        self.input_agent_master.setText(matrix.get("master_agent", "GLM-5.2"))
+        self.input_agent_vision.setText(matrix.get("vision_agent", "MiniMax M3"))
+        self.input_agent_speech.setText(matrix.get("speech_agent", "Nemotron ASR Streaming"))
+        self.input_agent_ocr.setText(matrix.get("ocr_agent", "Nemotron OCR v2"))
+        self.input_agent_story.setText(matrix.get("story_agent", "GLM-5.2"))
+        self.input_agent_planner.setText(matrix.get("editing_planner", "Nemotron-3 Ultra 550B"))
+
+        fs = settings_manager.get("frame_sampling", {})
+        self.spin_fps.setValue(fs.get("sample_rate_fps", 1.0))
+        self.chk_detect_scenes.setChecked(fs.get("detect_scene_changes", True))
+        self.input_ffmpeg.setText(fs.get("ffmpeg_path", "ffmpeg"))
 
         self.input_resolve_path.setText(settings_manager.get("resolve_path", ""))
         self.chk_auto_connect.setChecked(settings_manager.get("auto_connect_resolve", True))
@@ -179,15 +215,23 @@ class SettingsDialog(QDialog):
         settings_manager.set("nvidia_nim_api_key", self.input_nvidia_key.text().strip())
         settings_manager.set("nvidia_nim_base_url", self.input_nvidia_url.text().strip())
         
-        nim_models = {
-            "master_planner": self.input_model_planner.text().strip() or "GLM-5.2",
-            "vision": self.input_model_vision.text().strip() or "MiniMax M3",
-            "reasoning": self.input_model_reasoning.text().strip() or "Nemotron-3 Ultra 550B",
-            "ocr": self.input_model_ocr.text().strip() or "Nemotron OCR v2",
-            "asr": self.input_model_asr.text().strip() or "Nemotron ASR Streaming",
-            "embeddings": self.input_model_embeddings.text().strip() or "Nemotron Embed 1B",
+        agent_matrix = {
+            "master_agent": self.input_agent_master.text().strip() or "GLM-5.2",
+            "vision_agent": self.input_agent_vision.text().strip() or "MiniMax M3",
+            "speech_agent": self.input_agent_speech.text().strip() or "Nemotron ASR Streaming",
+            "ocr_agent": self.input_agent_ocr.text().strip() or "Nemotron OCR v2",
+            "story_agent": self.input_agent_story.text().strip() or "GLM-5.2",
+            "editing_planner": self.input_agent_planner.text().strip() or "Nemotron-3 Ultra 550B",
+            "resolve_agent": "Deterministic DaVinci API Translator"
         }
-        settings_manager.set("nim_models", nim_models)
+        settings_manager.set("agent_matrix", agent_matrix)
+
+        frame_sampling = {
+            "sample_rate_fps": self.spin_fps.value(),
+            "detect_scene_changes": self.chk_detect_scenes.isChecked(),
+            "ffmpeg_path": self.input_ffmpeg.text().strip() or "ffmpeg"
+        }
+        settings_manager.set("frame_sampling", frame_sampling)
 
         settings_manager.set("resolve_path", self.input_resolve_path.text().strip())
         settings_manager.set("auto_connect_resolve", self.chk_auto_connect.isChecked())

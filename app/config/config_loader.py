@@ -60,30 +60,39 @@ class ConfigLoader:
     def nvidia_nim_base_url(self) -> str:
         return os.getenv("NVIDIA_NIM_BASE_URL", "https://integrate.api.nvidia.com/v1")
 
-    # Specialized NVIDIA NIM Model Configurations
+    # 7-Agent Architecture Model Assignments (NVIDIA NIM build.nvidia.com)
     @property
-    def model_master_planner(self) -> str:
-        return os.getenv("NVIDIA_MODEL_MASTER_PLANNER", "GLM-5.2")
+    def model_master_agent(self) -> str:
+        return os.getenv("NVIDIA_MODEL_MASTER_AGENT", "GLM-5.2")
 
     @property
-    def model_vision(self) -> str:
-        return os.getenv("NVIDIA_MODEL_VISION", "MiniMax M3")
+    def model_vision_agent(self) -> str:
+        return os.getenv("NVIDIA_MODEL_VISION_AGENT", "MiniMax M3")
 
     @property
-    def model_reasoning(self) -> str:
-        return os.getenv("NVIDIA_MODEL_REASONING", "Nemotron-3 Ultra 550B")
+    def model_speech_agent(self) -> str:
+        return os.getenv("NVIDIA_MODEL_SPEECH_AGENT", "Nemotron ASR Streaming")
 
     @property
-    def model_ocr(self) -> str:
-        return os.getenv("NVIDIA_MODEL_OCR", "Nemotron OCR v2")
+    def model_ocr_agent(self) -> str:
+        return os.getenv("NVIDIA_MODEL_OCR_AGENT", "Nemotron OCR v2")
 
     @property
-    def model_asr(self) -> str:
-        return os.getenv("NVIDIA_MODEL_ASR", "Nemotron ASR Streaming")
+    def model_story_agent(self) -> str:
+        return os.getenv("NVIDIA_MODEL_STORY_AGENT", "GLM-5.2")
 
     @property
-    def model_embeddings(self) -> str:
-        return os.getenv("NVIDIA_MODEL_EMBEDDINGS", "Nemotron Embed 1B")
+    def model_editing_planner(self) -> str:
+        return os.getenv("NVIDIA_MODEL_EDITING_PLANNER", "Nemotron-3 Ultra 550B")
+
+    # Frame Extraction Strategy
+    @property
+    def frame_sample_rate(self) -> float:
+        return float(os.getenv("FRAME_SAMPLE_RATE", "1.0"))
+
+    @property
+    def extract_scene_boundaries(self) -> bool:
+        return os.getenv("EXTRACT_SCENE_BOUNDARIES", "True").lower() == "true"
 
 
 # Global singleton instance

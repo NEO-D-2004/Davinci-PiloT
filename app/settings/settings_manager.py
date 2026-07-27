@@ -15,13 +15,19 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
     "ai_provider": "nvidia_nim",
     "nvidia_nim_api_key": "",
     "nvidia_nim_base_url": "https://integrate.api.nvidia.com/v1",
-    "nim_models": {
-        "master_planner": "GLM-5.2",
-        "vision": "MiniMax M3",
-        "reasoning": "Nemotron-3 Ultra 550B",
-        "ocr": "Nemotron OCR v2",
-        "asr": "Nemotron ASR Streaming",
-        "embeddings": "Nemotron Embed 1B"
+    "agent_matrix": {
+        "master_agent": "GLM-5.2",
+        "vision_agent": "MiniMax M3",
+        "speech_agent": "Nemotron ASR Streaming",
+        "ocr_agent": "Nemotron OCR v2",
+        "story_agent": "GLM-5.2",
+        "editing_planner": "Nemotron-3 Ultra 550B",
+        "resolve_agent": "Deterministic DaVinci API Translator"
+    },
+    "frame_sampling": {
+        "sample_rate_fps": 1.0,
+        "detect_scene_changes": True,
+        "ffmpeg_path": "ffmpeg"
     },
     "openai_api_key": "",
     "gemini_api_key": "",

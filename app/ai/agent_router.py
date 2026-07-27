@@ -1,59 +1,71 @@
 """
 NVIDIA NIM Multi-Agent Router Module.
-Routes specific AI tasks to specialized NVIDIA NIM model endpoints.
+Defines the 7 specialized agents and routes tasks across the general-purpose video editing pipeline.
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, List
 from app.ai.nim_client import NvidiaNimClient
 from app.services.logger_service import app_logger
 
 
 class AgentTaskRole:
-    MASTER_PLANNER = "master_planner"  # GLM-5.2: Master Agent, tool calling & workflow planning
-    VISION = "vision"                  # MiniMax M3: Video frame & multimodal image understanding
-    REASONING = "reasoning"            # Nemotron-3 Ultra 550B: Complex timeline editing decisions
-    OCR = "ocr"                        # Nemotron OCR v2: Subtitle, text, slide & screen OCR
-    ASR = "asr"                        # Nemotron ASR Streaming: Timestamped speech recognition
-    EMBEDDINGS = "embeddings"          # Nemotron Embed 1B: Vector embeddings & semantic retrieval
+    MASTER_AGENT = "master_agent"          # GLM-5.2: User request understanding, workflow orchestration, merging plan, retries
+    VISION_AGENT = "vision_agent"          # MiniMax M3: Sampled frame understanding, scene description, person/action detection, emotions
+    SPEECH_AGENT = "speech_agent"          # Nemotron ASR Streaming: Timestamped audio transcript, speaker diarization, filler word detection
+    OCR_AGENT = "ocr_agent"                # Nemotron OCR v2: On-screen slides, code, subtitles, UI text, labels & signs
+    STORY_AGENT = "story_agent"            # GLM-5.2 / Composite: Consumes structured multimodal events, extracts narrative arc & cut candidates
+    EDITING_PLANNER = "editing_planner"    # Nemotron-3 Ultra 550B: Converts story understanding into structured Timeline Action JSON
+    RESOLVE_AGENT = "resolve_agent"        # Deterministic Translator: Converts Timeline Action JSON into official DaVinci Resolve Scripting API calls
 
 
 class AgentRouter:
-    """Orchestrates multi-agent routing using NVIDIA NIM microservices."""
+    """Orchestrates multi-agent routing using 7 specialized agent roles."""
 
     def __init__(self, nim_client: NvidiaNimClient = None) -> None:
         self.client = nim_client or NvidiaNimClient()
 
-    def get_agent_specs(self) -> Dict[str, Dict[str, str]]:
-        """Return the multi-agent task-to-model mapping matrix."""
+    def get_agent_matrix(self) -> Dict[str, Dict[str, str]]:
+        """Return full 7-Agent matrix details."""
         return {
-            AgentTaskRole.MASTER_PLANNER: {
-                "model": self.client.get_model_for_role(AgentTaskRole.MASTER_PLANNER),
-                "description": "Master Agent & Planning - Long horizon planning, tool calling, workflow orchestration."
+            AgentTaskRole.MASTER_AGENT: {
+                "model": self.client.get_model_for_role(AgentTaskRole.MASTER_AGENT),
+                "title": "Master Agent",
+                "description": "Understand user prompt, invoke specialists, merge plans, manage retries & error handling."
             },
-            AgentTaskRole.VISION: {
-                "model": self.client.get_model_for_role(AgentTaskRole.VISION),
-                "description": "Vision Understanding - Multimodal image + text reasoning for video frames."
+            AgentTaskRole.VISION_AGENT: {
+                "model": self.client.get_model_for_role(AgentTaskRole.VISION_AGENT),
+                "title": "Vision Agent",
+                "description": "Analyzes sampled video frames for scene descriptions, person/action detection, camera angles & emotions."
             },
-            AgentTaskRole.REASONING: {
-                "model": self.client.get_model_for_role(AgentTaskRole.REASONING),
-                "description": "Long Reasoning - Complex editing decisions, timeline planning, high-level logic."
+            AgentTaskRole.SPEECH_AGENT: {
+                "model": self.client.get_model_for_role(AgentTaskRole.SPEECH_AGENT),
+                "title": "Speech Agent (ASR)",
+                "description": "Converts audio to timestamped text, speaker diarization, filler word detection & transcript segments."
             },
-            AgentTaskRole.OCR: {
-                "model": self.client.get_model_for_role(AgentTaskRole.OCR),
-                "description": "OCR - Multilingual OCR for subtitles, signs, slides, and screen recordings."
+            AgentTaskRole.OCR_AGENT: {
+                "model": self.client.get_model_for_role(AgentTaskRole.OCR_AGENT),
+                "title": "OCR Agent",
+                "description": "Extracts on-screen presentation slides, code, subtitles, UI text, labels & signs."
             },
-            AgentTaskRole.ASR: {
-                "model": self.client.get_model_for_role(AgentTaskRole.ASR),
-                "description": "Speech Recognition - Timestamped speech-to-text transcription."
+            AgentTaskRole.STORY_AGENT: {
+                "model": self.client.get_model_for_role(AgentTaskRole.STORY_AGENT),
+                "title": "Story Understanding Agent",
+                "description": "Synthesizes multi-modal data {speech, scene, emotion, ocr} into narrative arcs and cut recommendations."
             },
-            AgentTaskRole.EMBEDDINGS: {
-                "model": self.client.get_model_for_role(AgentTaskRole.EMBEDDINGS),
-                "description": "Semantic Search - Vector embeddings for retrieving events, transcripts & prior analyses."
+            AgentTaskRole.EDITING_PLANNER: {
+                "model": self.client.get_model_for_role(AgentTaskRole.EDITING_PLANNER),
+                "title": "Editing Planner Agent",
+                "description": "Converts story understanding into structured Timeline Action JSON {clip, start, end, keep, effect}."
+            },
+            AgentTaskRole.RESOLVE_AGENT: {
+                "model": self.client.get_model_for_role(AgentTaskRole.RESOLVE_AGENT),
+                "title": "Resolve API Agent",
+                "description": "Deterministic translator mapping Timeline Action JSON directly into official DaVinci Resolve API calls."
             },
         }
 
     def route_task(self, role: str) -> str:
-        """Get the model ID assigned for a given task role."""
+        """Get the model ID assigned for a given agent role."""
         model = self.client.get_model_for_role(role)
         app_logger.debug(f"Routed agent role '{role}' -> NVIDIA NIM model '{model}'")
         return model
