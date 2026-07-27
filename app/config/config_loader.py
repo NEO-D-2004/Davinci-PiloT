@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Optional
 from dotenv import load_dotenv
 
+
 class ConfigLoader:
     """Loads environment variables and app configuration."""
 
@@ -49,7 +50,41 @@ class ConfigLoader:
 
     @property
     def default_ai_provider(self) -> str:
-        return os.getenv("DEFAULT_AI_PROVIDER", "gemini")
+        return os.getenv("DEFAULT_AI_PROVIDER", "nvidia_nim")
+
+    @property
+    def nvidia_nim_api_key(self) -> str:
+        return os.getenv("NVIDIA_NIM_API_KEY", "")
+
+    @property
+    def nvidia_nim_base_url(self) -> str:
+        return os.getenv("NVIDIA_NIM_BASE_URL", "https://integrate.api.nvidia.com/v1")
+
+    # Specialized NVIDIA NIM Model Configurations
+    @property
+    def model_master_planner(self) -> str:
+        return os.getenv("NVIDIA_MODEL_MASTER_PLANNER", "GLM-5.2")
+
+    @property
+    def model_vision(self) -> str:
+        return os.getenv("NVIDIA_MODEL_VISION", "MiniMax M3")
+
+    @property
+    def model_reasoning(self) -> str:
+        return os.getenv("NVIDIA_MODEL_REASONING", "Nemotron-3 Ultra 550B")
+
+    @property
+    def model_ocr(self) -> str:
+        return os.getenv("NVIDIA_MODEL_OCR", "Nemotron OCR v2")
+
+    @property
+    def model_asr(self) -> str:
+        return os.getenv("NVIDIA_MODEL_ASR", "Nemotron ASR Streaming")
+
+    @property
+    def model_embeddings(self) -> str:
+        return os.getenv("NVIDIA_MODEL_EMBEDDINGS", "Nemotron Embed 1B")
+
 
 # Global singleton instance
 config = ConfigLoader()

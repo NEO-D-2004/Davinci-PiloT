@@ -1,5 +1,5 @@
 """
-Unit tests for SettingsManager module.
+Unit tests for SettingsManager module with NVIDIA NIM defaults.
 """
 
 from pathlib import Path
@@ -12,12 +12,13 @@ def test_settings_manager_load_save(tmp_path: Path):
 
     # Verify defaults
     assert manager.get("theme") == "dark"
-    assert manager.get("ai_provider") == "gemini"
+    assert manager.get("ai_provider") == "nvidia_nim"
+    assert manager.get("nim_models")["master_planner"] == "GLM-5.2"
 
     # Modify setting
-    manager.set("ai_provider", "nvidia_nim")
-    assert manager.get("ai_provider") == "nvidia_nim"
+    manager.set("ai_provider", "local_llm")
+    assert manager.get("ai_provider") == "local_llm"
 
     # Reload from file
     new_manager = SettingsManager(settings_file=test_file)
-    assert new_manager.get("ai_provider") == "nvidia_nim"
+    assert new_manager.get("ai_provider") == "local_llm"

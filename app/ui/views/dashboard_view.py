@@ -84,7 +84,7 @@ class DashboardView(QWidget):
             "TIMELINE CLIPS", "0 Clips", "0 Tracks", "#89B4FA", self
         )
         self.card_ai = MetricCard(
-            "AI PROVIDER", "Gemini Flash", "Ready for commands", "#A6E3A1", self
+            "AI PROVIDER", "NVIDIA NIM", "GLM-5.2 + Multi-Agent", "#A6E3A1", self
         )
 
         metrics_layout.addWidget(self.card_resolve)

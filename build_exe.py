@@ -24,6 +24,7 @@ def build_executable() -> None:
         sys.executable,
         "-m", "PyInstaller",
         "--clean",
+        "-y",
         str(spec_file)
     ]
 

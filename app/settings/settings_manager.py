@@ -12,9 +12,18 @@ from app.services.logger_service import app_logger
 
 DEFAULT_SETTINGS: Dict[str, Any] = {
     "theme": "dark",
-    "ai_provider": "gemini",
-    "openai_api_key": "",
+    "ai_provider": "nvidia_nim",
     "nvidia_nim_api_key": "",
+    "nvidia_nim_base_url": "https://integrate.api.nvidia.com/v1",
+    "nim_models": {
+        "master_planner": "GLM-5.2",
+        "vision": "MiniMax M3",
+        "reasoning": "Nemotron-3 Ultra 550B",
+        "ocr": "Nemotron OCR v2",
+        "asr": "Nemotron ASR Streaming",
+        "embeddings": "Nemotron Embed 1B"
+    },
+    "openai_api_key": "",
     "gemini_api_key": "",
     "local_llm_url": "http://localhost:11434/v1",
     "resolve_path": r"C:\Program Files\Blackmagic Design\DaVinci Resolve\Developer\Scripting",

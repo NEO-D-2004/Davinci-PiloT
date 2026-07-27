@@ -21,7 +21,7 @@ class MainViewModel(QObject):
     def __init__(self) -> None:
         super().__init__()
         self._is_resolve_connected = False
-        self._ai_provider = settings_manager.get("ai_provider", "gemini")
+        self._ai_provider = settings_manager.get("ai_provider", "nvidia_nim")
         
         # Subscribe to settings changes
         settings_manager.signal_emitter.setting_changed.connect(self._on_setting_changed)

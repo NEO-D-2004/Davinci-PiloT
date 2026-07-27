@@ -29,7 +29,7 @@ class AppStatusBar(QStatusBar):
         self.addPermanentWidget(self.progress_bar)
 
         # AI Provider Badge
-        self.ai_badge = QLabel("AI: Gemini", self)
+        self.ai_badge = QLabel("AI: NVIDIA NIM", self)
         self.ai_badge.setStyleSheet("""
             QLabel {
                 color: #89B4FA;
