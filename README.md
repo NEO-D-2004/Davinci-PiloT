@@ -4,18 +4,22 @@
 
 ---
 
-## 🚀 Key Features (Milestone 1)
+## 🚀 Key Features
 
+### Milestone 1: Project Foundation
 - **Standalone Windows Executable**: Independent PySide6 Desktop Application built natively for Windows.
 - **Modern Dark Theme**: Rich dark palette (`#1E1E2E`, `#181825`), clean typography, micro-animations, and responsive layout.
 - **MVVM Architecture**: Clean separation between Views, ViewModels, and Services.
-- **Core Services**:
-  - `LoggerService`: Powered by Loguru with console, file rotation, and Qt live signal routing.
-  - `SettingsManager`: JSON-backed persistent preferences with Qt signal bindings.
-  - `DatabaseManager`: Local SQLite database tracking sessions and activity logs.
-- **UI Components**: MenuBar, Action Toolbar with status badges, Status Bar, Notification Toast system, and Dashboard workspace.
-- **Splash Screen**: Animated loading splash screen during startup sequence.
-- **PyInstaller Packaging**: Automated script (`build_exe.py`) producing standalone `Davinci-PiloT.exe`.
+- **NVIDIA NIM 7-Agent Engine**: Multi-agent model router connecting to `build.nvidia.com` free endpoints (`GLM-5.2`, `MiniMax M3`, `Nemotron ASR`, `Nemotron OCR v2`, `Nemotron-3 Ultra 550B`, `Nemotron Embed 1B`).
+- **FFmpeg Frame Sampling**: 1.0 FPS & scene boundary keyframe extraction strategy preventing raw long video payloads to LLMs.
+
+### Milestone 2: DaVinci Resolve Connection
+- **Official Resolve Scripting API loader**: Dynamic loading of `fusionscript.dll` and `DaVinciResolveScript` module (`bmd.scriptapp("Resolve")`).
+- **Process & Instance Detection**: Checks if `Resolve.exe` is running on Windows and handles missing application handles gracefully.
+- **Current Project & Timeline Queries**: Live querying of Active Project Name, Resolution, Frame Rate, Timelines Count, Active Timeline Name, Video/Audio Tracks Count, and Total Clips.
+- **Media Pool Queries**: Live inspection of Root Bin Name, Subfolders Count, and Total Clips.
+- **Non-Blocking QThread Worker**: Connection handshakes and polling execute off the main Qt thread (`ResolveConnectWorker`) preventing UI freezes.
+- **Real-Time Dashboard & Status Synchronization**: Dynamic metric card updates on `DashboardView`, live status badges on `AppToolBar` (`● Resolve Connected` / `● Resolve Disconnected`), and Toast Notifications.
 
 ---
 
@@ -24,7 +28,9 @@
 - **Language**: Python 3.13+
 - **GUI Framework**: PySide6 (Qt 6)
 - **Architecture**: MVVM (Model-View-ViewModel)
-- **Database**: SQLite
+- **Automation**: DaVinci Resolve Scripting API (`fusionscript.dll`)
+- **AI Infrastructure**: NVIDIA NIM Microservices (`build.nvidia.com`)
+- **Database**: SQLite (`app.db`)
 - **Configuration & Settings**: `.env` & JSON (`user_settings.json`)
 - **Logging**: Loguru
 - **Packaging**: PyInstaller
@@ -36,19 +42,22 @@
 ```
 Davinci-PiloT/
 ├── app/
-│   ├── assets/
-│   │   └── styles/
-│   │       └── dark_theme.qss
-│   ├── config/
-│   │   └── config_loader.py
-│   ├── database/
-│   │   └── db_manager.py
-│   ├── logs/
-│   │   └── app.log
+│   ├── ai/
+│   │   ├── agent_router.py
+│   │   ├── frame_sampler.py
+│   │   ├── nim_client.py
+│   │   └── pipeline.py
+│   ├── assets/styles/dark_theme.qss
+│   ├── automation/
+│   │   ├── resolve_api.py
+│   │   └── resolve_connector.py
+│   ├── config/config_loader.py
+│   ├── database/db_manager.py
+│   ├── models/resolve_models.py
 │   ├── services/
-│   │   └── logger_service.py
-│   ├── settings/
-│   │   └── settings_manager.py
+│   │   ├── logger_service.py
+│   │   └── resolve_service.py
+│   ├── settings/settings_manager.py
 │   ├── ui/
 │   │   ├── components/
 │   │   │   ├── menu_bar.py
@@ -60,13 +69,13 @@ Davinci-PiloT/
 │   │   │   └── settings_view.py
 │   │   ├── main_window.py
 │   │   └── splash_screen.py
-│   ├── utils/
-│   ├── viewmodels/
-│   │   └── main_viewmodel.py
+│   ├── viewmodels/main_viewmodel.py
 │   └── main.py
 ├── tests/
+│   ├── test_ai.py
 │   ├── test_config.py
 │   ├── test_database.py
+│   ├── test_resolve_service.py
 │   ├── test_settings.py
 │   └── test_ui.py
 ├── .env.example
@@ -100,4 +109,4 @@ python -m venv .venv
 ```bash
 .venv\Scripts\python build_exe.py
 ```
-The output executable will be created in `dist/Davinci-PiloT/Davinci-PiloT.exe`.
+Output executable: `dist/Davinci-PiloT/Davinci-PiloT.exe`.

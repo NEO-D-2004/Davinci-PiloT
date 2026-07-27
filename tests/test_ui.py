@@ -2,11 +2,10 @@
 Unit tests for PySide6 UI views and MainWindow instantiation.
 """
 
-import sys
 from PySide6.QtWidgets import QApplication
 from app.viewmodels import MainViewModel
 from app.ui.main_window import MainWindow
-from app.ui.splash_screen import SplashScreen
+from app.models.resolve_models import ResolveState, ProjectInfo
 
 
 def test_ui_instantiation(qtbot):
@@ -17,6 +16,9 @@ def test_ui_instantiation(qtbot):
     assert window.windowTitle() == "DaVinci PiloT - AI Copilot for DaVinci Resolve"
     assert window.isVisible() is False
     
-    # Test connection toggle
-    view_model.toggle_resolve_connection()
+    # Test connection finished handler with state
+    mock_state = ResolveState(is_connected=True, project=ProjectInfo(name="Test Project", is_loaded=True))
+    view_model._on_connection_finished(True, "Connected", mock_state)
+
     assert view_model.is_resolve_connected is True
+    assert view_model.resolve_state.project.name == "Test Project"

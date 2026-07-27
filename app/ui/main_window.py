@@ -70,6 +70,7 @@ class MainWindow(QMainWindow):
 
         # ViewModel State Signals
         self.viewModel.connection_state_changed.connect(self.on_connection_state_changed)
+        self.viewModel.resolve_state_updated.connect(self.dashboard_view.update_resolve_state)
         self.viewModel.status_message_changed.connect(self.app_status_bar.show_message)
         self.viewModel.notification_emitted.connect(self.handle_notification_signal)
         self.viewModel.ai_provider_changed.connect(self.app_status_bar.set_ai_provider)
