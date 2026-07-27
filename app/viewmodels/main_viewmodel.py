@@ -3,6 +3,7 @@ Main ViewModel for DaVinci PiloT.
 Coordinates app business logic, view state bindings, settings updates, and background service interactions off the main UI thread.
 """
 
+from typing import Optional
 from PySide6.QtCore import QObject, Signal, QThread
 from app.services.logger_service import app_logger
 from app.services.resolve_service import resolve_service
@@ -45,6 +46,9 @@ class MainViewModel(QObject):
         # Subscribe to settings changes
         settings_manager.signal_emitter.setting_changed.connect(self._on_setting_changed)
 
+        # Automatically listen for live state from DaVinciPiloT_Bridge in Resolve
+        resolve_service.state_listeners.append(self._on_bridge_auto_connect)
+
     @property
     def is_resolve_connected(self) -> bool:
         return self._is_resolve_connected
@@ -56,6 +60,27 @@ class MainViewModel(QObject):
     @property
     def resolve_state(self) -> ResolveState:
         return self._resolve_state
+
+    def _on_bridge_auto_connect(self, state: ResolveState) -> None:
+        """Invoked automatically when DaVinciPiloT_Bridge payload is received from Resolve."""
+        self._is_resolve_connected = state.is_connected
+        self._resolve_state = state
+
+        # Emit PySide6 signals to UI on main thread
+        self.connection_state_changed.emit(state.is_connected)
+        self.resolve_state_updated.emit(state)
+
+        if state.is_connected:
+            app_logger.info(f"Auto-connected via Bridge: Project='{state.project.name}'")
+            db_manager.log_activity(
+                level="INFO",
+                category="RESOLVE_CONN",
+                message=f"Auto-connected to DaVinci Resolve via Bridge ({state.project.name})"
+            )
+            self.status_message_changed.emit(f"Connected to DaVinci Resolve - {state.project.name}")
+            self.notification_emitted.emit("success", f"Auto-connected to DaVinci Resolve! Project: '{state.project.name}'")
+        else:
+            self.status_message_changed.emit("DaVinci Resolve Disconnected")
 
     def toggle_resolve_connection(self) -> None:
         """Asynchronously connect or disconnect from DaVinci Resolve."""

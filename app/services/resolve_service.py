@@ -3,7 +3,7 @@ DaVinci Resolve Service Module.
 Service layer orchestrating DaVinci Resolve connection, active project/timeline queries, and state notifications.
 """
 
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List, Callable
 from app.automation.resolve_connector import ResolveConnector
 from app.automation.resolve_api import ResolveApiWrapper
 from app.automation.bridge_server import start_bridge_server
@@ -18,6 +18,8 @@ class ResolveService:
         self.connector = ResolveConnector()
         self.api = ResolveApiWrapper()
         self._current_state = ResolveState(is_connected=False)
+        self.state_listeners: List[Callable[[ResolveState], None]] = []
+
         # Start local bridge HTTP server to listen for Resolve 21 Free/Studio payloads
         start_bridge_server(self._on_bridge_state_received)
 
@@ -25,6 +27,13 @@ class ResolveService:
         """Callback invoked when state payload is received from DaVinciPiloT_Bridge."""
         self._current_state = state
         app_logger.info(f"Updated ResolveState from Bridge: Project='{state.project.name}' (Connected={state.is_connected})")
+
+        # Automatically notify all subscribers (ViewModel, UI)
+        for listener in list(self.state_listeners):
+            try:
+                listener(state)
+            except Exception as e:
+                app_logger.error(f"Error notifying state listener: {e}")
 
     @property
     def is_connected(self) -> bool:
@@ -55,7 +64,6 @@ class ResolveService:
             return True, f"Connected to {self._current_state.product_name} ({self._current_state.project.name})"
         else:
             msg = err or "Failed to connect to DaVinci Resolve."
-            # If not connected yet, keep last error message
             if not self._current_state.is_connected:
                 self._current_state.error_message = msg
             return False, msg
@@ -79,6 +87,12 @@ class ResolveService:
         self.api.set_handle(None)
         self._current_state = ResolveState(is_connected=False)
         app_logger.info("ResolveService disconnected.")
+
+        for listener in list(self.state_listeners):
+            try:
+                listener(self._current_state)
+            except Exception as e:
+                app_logger.error(f"Error notifying state listener: {e}")
 
 
 # Global singleton service
