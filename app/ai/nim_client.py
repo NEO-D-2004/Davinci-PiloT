@@ -91,7 +91,7 @@ class NvidiaNimClient:
             req = urllib.request.Request(url, data=req_data, headers=headers, method="POST")
 
             app_logger.info(f"NVIDIA NIM API POST -> {url} [Agent: '{model}' -> Endpoint: '{endpoint_model}']")
-            with urllib.request.urlopen(req, timeout=8) as resp:
+            with urllib.request.urlopen(req, timeout=35) as resp:
                 resp_bytes = resp.read()
                 data = json.loads(resp_bytes.decode("utf-8"))
                 
@@ -144,7 +144,9 @@ class NvidiaNimClient:
         
         content_items: List[Dict[str, Any]] = [{"type": "text", "text": prompt}]
 
-        if image_path and os.path.exists(image_path):
+        # Only encode image files (.jpg, .jpeg, .png, .webp), never raw video containers (.mp4, .mov)
+        valid_img_exts = {".jpg", ".jpeg", ".png", ".webp", ".bmp"}
+        if image_path and os.path.exists(image_path) and os.path.splitext(image_path)[1].lower() in valid_img_exts:
             try:
                 with open(image_path, "rb") as f:
                     b64_data = base64.b64encode(f.read()).decode("utf-8")
