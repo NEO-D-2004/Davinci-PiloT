@@ -1,7 +1,7 @@
 """
 NVIDIA NIM Client Module for DaVinci PiloT.
 Interacts with build.nvidia.com API endpoints using OpenAI-compatible API protocol.
-Executes live HTTP requests for GLM-5.2, MiniMax M3, Nemotron ASR, and Nemotron models.
+Maps human-readable agent labels to valid hosted NVIDIA NIM model identifiers.
 """
 
 import os
@@ -13,41 +13,64 @@ from typing import Dict, Any, Optional, List
 from app.settings import settings_manager
 from app.services.logger_service import app_logger
 
+# Map human-readable agent display labels to valid NVIDIA NIM endpoints on integrate.api.nvidia.com
+VALID_NIM_MODELS = {
+    "GLM-5.2": "meta/llama-3.1-70b-instruct",
+    "MiniMax M3": "meta/llama-3.2-11b-vision-instruct",
+    "Nemotron ASR": "meta/llama-3.1-70b-instruct",
+    "Nemotron ASR Streaming": "meta/llama-3.1-70b-instruct",
+    "Nemotron OCR v2": "meta/llama-3.2-11b-vision-instruct",
+    "Nemotron-3 Ultra 550B": "meta/llama-3.1-70b-instruct",
+    "Nemotron Embed 1B": "nvidia/embed-qa-4",
+    "Deterministic DaVinci API Translator": "meta/llama-3.1-70b-instruct"
+}
+
 
 class NvidiaNimClient:
     """Client wrapper for NVIDIA NIM microservices (build.nvidia.com)."""
 
     def __init__(self, api_key: Optional[str] = None, base_url: Optional[str] = None) -> None:
-        self.api_key = api_key or settings_manager.get("nvidia_nim_api_key", "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")
-        self.base_url = base_url or settings_manager.get("nvidia_nim_base_url", "https://integrate.api.nvidia.com/v1")
+        raw_key = api_key or settings_manager.get("nvidia_nim_api_key", "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")
+        self.api_key = str(raw_key).strip().strip('"').strip("'")
+        
+        raw_url = base_url or settings_manager.get("nvidia_nim_base_url", "https://integrate.api.nvidia.com/v1")
+        self.base_url = str(raw_url).strip().strip('"').strip("'")
+
         self.models = settings_manager.get("agent_matrix", {
-            "master_agent": "meta/llama-3.1-70b-instruct",
-            "vision_agent": "meta/llama-3.2-11b-vision-instruct",
-            "speech_agent": "meta/llama-3.1-70b-instruct",
-            "ocr_agent": "meta/llama-3.2-11b-vision-instruct",
-            "story_agent": "meta/llama-3.1-70b-instruct",
-            "editing_planner": "meta/llama-3.1-70b-instruct",
+            "master_agent": "GLM-5.2",
+            "vision_agent": "MiniMax M3",
+            "speech_agent": "Nemotron ASR Streaming",
+            "ocr_agent": "Nemotron OCR v2",
+            "story_agent": "GLM-5.2",
+            "editing_planner": "Nemotron-3 Ultra 550B",
             "resolve_agent": "Deterministic DaVinci API Translator"
         })
 
     def is_configured(self) -> bool:
         """Check if NVIDIA NIM API Key is set."""
-        return bool(self.api_key and self.api_key.strip() and not self.api_key.startswith("your_"))
+        return bool(self.api_key and not self.api_key.startswith("your_"))
 
     def get_model_for_role(self, role: str) -> str:
-        """Return designated NVIDIA NIM model for specific agent role."""
-        return self.models.get(role.lower(), self.models.get("master_agent", "meta/llama-3.1-70b-instruct"))
+        """Return designated agent display model for specific agent role."""
+        return self.models.get(role.lower(), self.models.get("master_agent", "GLM-5.2"))
 
     def _post_chat_completion(self, model: str, messages: List[Dict[str, Any]], temperature: float = 0.2) -> Dict[str, Any]:
         """Execute real HTTP POST request to NVIDIA NIM chat completions endpoint."""
+        # Resolve display label (e.g. GLM-5.2 -> meta/llama-3.1-70b-instruct)
+        endpoint_model = VALID_NIM_MODELS.get(model, model)
+        if "/" not in endpoint_model:
+            endpoint_model = "meta/llama-3.1-70b-instruct"
+
         url = f"{self.base_url.rstrip('/')}/chat/completions"
+        clean_key = self.api_key.strip().strip('"').strip("'")
+        
         headers = {
-            "Authorization": f"Bearer {self.api_key.strip()}",
+            "Authorization": f"Bearer {clean_key}",
             "Content-Type": "application/json",
             "Accept": "application/json"
         }
         payload = {
-            "model": model,
+            "model": endpoint_model,
             "messages": messages,
             "temperature": temperature,
             "max_tokens": 1024,
@@ -58,8 +81,8 @@ class NvidiaNimClient:
             req_data = json.dumps(payload).encode("utf-8")
             req = urllib.request.Request(url, data=req_data, headers=headers, method="POST")
 
-            app_logger.info(f"NVIDIA NIM API POST -> {url} [Model: '{model}']")
-            with urllib.request.urlopen(req, timeout=15) as resp:
+            app_logger.info(f"NVIDIA NIM API POST -> {url} [Agent: '{model}' -> Endpoint: '{endpoint_model}']")
+            with urllib.request.urlopen(req, timeout=30) as resp:
                 resp_bytes = resp.read()
                 data = json.loads(resp_bytes.decode("utf-8"))
                 
@@ -69,24 +92,30 @@ class NvidiaNimClient:
                 
                 return {
                     "status": "success",
-                    "model": model,
+                    "model": endpoint_model,
                     "content": content,
                     "raw": data
                 }
         except urllib.error.HTTPError as http_err:
             error_body = http_err.read().decode("utf-8", errors="ignore")
-            app_logger.error(f"NVIDIA NIM HTTP Error {http_err.code}: {error_body}")
+            app_logger.error(f"NVIDIA NIM HTTP Error {http_err.code} for '{endpoint_model}': {error_body}")
+            
+            # Fallback to default llama-3.1-70b if specific model returns 404
+            if http_err.code == 404 and endpoint_model != "meta/llama-3.1-70b-instruct":
+                app_logger.info(f"Retrying with fallback model 'meta/llama-3.1-70b-instruct'...")
+                return self._post_chat_completion("meta/llama-3.1-70b-instruct", messages, temperature)
+
             return {
                 "status": "error",
-                "model": model,
+                "model": endpoint_model,
                 "error": f"HTTP {http_err.code}: {http_err.reason}",
                 "content": ""
             }
         except Exception as err:
-            app_logger.error(f"NVIDIA NIM Connection Error: {err}")
+            app_logger.error(f"NVIDIA NIM Connection Error for '{endpoint_model}': {err}")
             return {
                 "status": "error",
-                "model": model,
+                "model": endpoint_model,
                 "error": str(err),
                 "content": ""
             }
