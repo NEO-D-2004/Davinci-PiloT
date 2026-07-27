@@ -6,6 +6,12 @@ Initializes PySide6 Application, displays Splash Screen, loads core services, an
 import sys
 import time
 from pathlib import Path
+
+# Ensure project root is in sys.path when running app/main.py directly
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import QApplication
 from app.ui.splash_screen import SplashScreen
