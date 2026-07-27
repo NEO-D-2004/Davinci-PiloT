@@ -8,7 +8,7 @@ block_cipher = None
 
 added_files = [
     ('app/assets', 'app/assets'),
-    ('.env.example', '.'),
+    ('.env', '.'),
 ]
 
 a = Analysis(
