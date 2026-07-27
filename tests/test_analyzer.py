@@ -93,7 +93,7 @@ def test_analyzer_view_instantiation(qtbot):
     view = AnalyzerView()
     qtbot.addWidget(view)
 
-    assert "NVIDIA NIM" in view.summary_card.text()
+    assert "DaVinci Resolve" in view.summary_card.text()
     assert view.transcript_table.rowCount() == 0
 
     # Test displaying report

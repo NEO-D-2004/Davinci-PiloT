@@ -1,9 +1,10 @@
 """
 AI Vision & Audio Analyzer View Component for DaVinci PiloT.
 Renders multi-agent speech transcripts, silence removal gaps, keyframe visual insights, and AI Smart Cut proposals.
+Connects dynamically to active DaVinci Resolve Timeline and Media Pool clips.
 """
 
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QPushButton,
     QProgressBar, QTabWidget, QTableWidget, QTableWidgetItem, QHeaderView,
@@ -12,12 +13,13 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtGui import QFont, QColor
 from app.ai.multi_agent_pipeline import MultiAgentAnalyzer
+from app.models.resolve_models import ResolveState
 from app.models.analyzer_models import AnalysisReport, TranscriptSegment, SilenceGap, VisualFrameInsight, SmartCutProposal
 from app.services.logger_service import app_logger
 
 
 class AnalyzerWorkerThread(QThread):
-    """Background worker thread for running multi-agent analysis without freezing UI."""
+    """Background worker thread for running multi-agent analysis on active Resolve clips."""
     analysis_completed = Signal(object)
     progress_updated = Signal(int, str)
 
@@ -30,16 +32,16 @@ class AnalyzerWorkerThread(QThread):
 
     def run(self) -> None:
         try:
-            self.progress_updated.emit(25, "Transcribing Speech with Nemotron ASR...")
-            self.msleep(300)
-            
-            self.progress_updated.emit(60, "Analyzing Keyframes with MiniMax M3...")
-            self.msleep(300)
+            self.progress_updated.emit(20, f"Querying Nemotron ASR for '{self.asset_name}'...")
+            self.msleep(200)
 
-            self.progress_updated.emit(85, "Generating Smart Cuts with GLM-5.2 Master Agent...")
+            self.progress_updated.emit(50, f"Sampling keyframes & querying MiniMax M3 Vision Agent...")
+            self.msleep(200)
+
+            self.progress_updated.emit(80, f"Synthesizing Smart Cuts via GLM-5.2 Master Agent...")
             report = self.pipeline.run_full_analysis(self.asset_name, self.file_path, self.duration_sec)
 
-            self.progress_updated.emit(100, "Multi-Agent Analysis Complete!")
+            self.progress_updated.emit(100, "Analysis Complete!")
             self.analysis_completed.emit(report)
         except Exception as e:
             app_logger.error(f"Error during AI analysis worker: {e}")
@@ -52,6 +54,7 @@ class AnalyzerView(QWidget):
         super().__init__(parent)
         self._current_report: Optional[AnalysisReport] = None
         self._worker: Optional[AnalyzerWorkerThread] = None
+        self._clip_registry: Dict[str, Dict[str, Any]] = {}
         self._init_ui()
 
     def _init_ui(self) -> None:
@@ -68,7 +71,7 @@ class AnalyzerView(QWidget):
 
         header_layout.addStretch()
 
-        self.summary_card = QLabel("Status: Ready to analyze media with NVIDIA NIM 7-Agent Engine")
+        self.summary_card = QLabel("Status: Select an active DaVinci Resolve clip to analyze")
         self.summary_card.setFont(QFont("Segoe UI", 10))
         self.summary_card.setStyleSheet("color: #A6ADC8; background-color: #181825; padding: 6px 14px; border-radius: 6px; border: 1px solid #313244;")
         header_layout.addWidget(self.summary_card)
@@ -82,14 +85,11 @@ class AnalyzerView(QWidget):
         control_layout.setContentsMargins(14, 12, 14, 12)
         control_layout.setSpacing(14)
 
-        asset_lbl = QLabel("Target Asset:")
+        asset_lbl = QLabel("Target Active Clip:")
         asset_lbl.setStyleSheet("color: #CDD6F4; font-weight: bold; font-size: 12px; border: none;")
         control_layout.addWidget(asset_lbl)
 
         self.asset_combo = QComboBox()
-        self.asset_combo.addItems([
-            "Active Timeline Media", "Interview_A01.mov (3840x2160)", "B-Roll_Montage.mp4", "Tutorial_Voiceover.wav"
-        ])
         self.asset_combo.setStyleSheet("""
             QComboBox {
                 background-color: #1E1E2E;
@@ -98,10 +98,10 @@ class AnalyzerView(QWidget):
                 border-radius: 6px;
                 padding: 6px 12px;
                 font-size: 12px;
-                min-width: 220px;
+                min-width: 280px;
             }
         """)
-        control_layout.addWidget(self.asset_combo)
+        control_layout.addWidget(self.asset_combo, 1)
 
         self.run_btn = QPushButton("🚀 Run Multi-Agent Analysis")
         self.run_btn.setStyleSheet("""
@@ -109,7 +109,7 @@ class AnalyzerView(QWidget):
                 background-color: #89B4FA;
                 color: #11111B;
                 border-radius: 6px;
-                padding: 8px 18px;
+                padding: 8px 20px;
                 font-weight: bold;
                 font-size: 12px;
             }
@@ -149,7 +149,7 @@ class AnalyzerView(QWidget):
         self.progress_bar.hide()
         main_layout.addWidget(self.progress_bar)
 
-        # Tabbed View (Speech, Vision, Smart Cuts)
+        # Tabbed View
         self.tabs = QTabWidget()
         self.tabs.setStyleSheet("""
             QTabWidget::pane {
@@ -202,7 +202,7 @@ class AnalyzerView(QWidget):
             }
         """)
         speech_layout.addWidget(self.transcript_table)
-        self.tabs.addTab(self.speech_tab, "🗣️ Speech & Silence")
+        self.tabs.addTab(self.speech_tab, "🗣️ Speech & Silence (Nemotron ASR)")
 
         # Tab 2: Vision Keyframes (MiniMax M3)
         self.vision_tab = QWidget()
@@ -268,17 +268,77 @@ class AnalyzerView(QWidget):
 
         main_layout.addWidget(self.tabs, 1)
 
+    def update_resolve_state(self, state: ResolveState) -> None:
+        """Populate target asset dropdown dynamically with actual clips from Resolve Timeline & Media Pool."""
+        self.asset_combo.clear()
+        self._clip_registry.clear()
+
+        if not state or not state.is_connected:
+            self.asset_combo.addItem("No DaVinci Resolve Connection")
+            self.summary_card.setText("Status: Connect DaVinci Resolve to analyze active timeline clips")
+            return
+
+        # 1. Register Timeline Clips
+        if state.timeline_structure:
+            all_clips = state.timeline_structure.get_all_clips()
+            for clip in all_clips:
+                combo_title = f"[Timeline {clip.track_type.upper()}{clip.track_index}] {clip.name} ({clip.duration_frames}f)"
+                duration_sec = clip.duration_frames / (state.timeline_structure.fps or 24.0)
+                
+                self._clip_registry[combo_title] = {
+                    "name": clip.name,
+                    "file_path": clip.source_path if clip.source_path != "N/A" else clip.name,
+                    "duration_sec": max(duration_sec, 10.0),
+                    "type": "timeline_clip"
+                }
+                self.asset_combo.addItem(combo_title)
+
+        # 2. Register Media Pool Assets
+        if state.media_pool_structure:
+            mp_assets = state.media_pool_structure.get_all_assets()
+            for asset in mp_assets:
+                combo_title = f"[Media Bin] {asset.name} ({asset.resolution})"
+                if combo_title not in self._clip_registry:
+                    self._clip_registry[combo_title] = {
+                        "name": asset.name,
+                        "file_path": asset.file_path,
+                        "duration_sec": 45.0,
+                        "type": "media_asset"
+                    }
+                    self.asset_combo.addItem(combo_title)
+
+        if self.asset_combo.count() == 0:
+            self.asset_combo.addItem(f"Active Project: '{state.project.name}' Timeline Clips")
+            self._clip_registry[f"Active Project: '{state.project.name}' Timeline Clips"] = {
+                "name": state.timeline.name or "Timeline",
+                "file_path": state.project.name,
+                "duration_sec": 45.0,
+                "type": "project"
+            }
+
+        self.summary_card.setText(f"Connected: {self.asset_combo.count()} active Resolve clips ready for AI Analysis")
+
     def _start_analysis(self) -> None:
-        target_asset = self.asset_combo.currentText()
+        selected_text = self.asset_combo.currentText()
+        if not selected_text or selected_text == "No DaVinci Resolve Connection":
+            QMessageBox.warning(self, "No Clip Selected", "Please select a valid clip from your DaVinci Resolve Timeline!")
+            return
+
+        clip_data = self._clip_registry.get(selected_text, {
+            "name": selected_text,
+            "file_path": selected_text,
+            "duration_sec": 45.0
+        })
+
         self.run_btn.setEnabled(False)
         self.progress_bar.setValue(10)
-        self.progress_bar.setFormat("Initializing NVIDIA NIM Agents...")
+        self.progress_bar.setFormat(f"Connecting to NVIDIA NIM for '{clip_data['name']}'...")
         self.progress_bar.show()
 
         self._worker = AnalyzerWorkerThread(
-            asset_name=target_asset,
-            file_path=target_asset,
-            duration_sec=45.0
+            asset_name=clip_data["name"],
+            file_path=clip_data["file_path"],
+            duration_sec=clip_data["duration_sec"]
         )
         self._worker.progress_updated.connect(self._on_progress_updated)
         self._worker.analysis_completed.connect(self.display_report)
@@ -295,8 +355,8 @@ class AnalyzerView(QWidget):
 
         # Update Summary Banner
         self.summary_card.setText(
-            f"Asset: '{report.asset_name}' | {len(report.segments)} Speech Segments | "
-            f"✂️ {len(report.cut_proposals)} Smart Cuts Proposed (Saved {report.total_silence_time}s Silence)"
+            f"Analyzed Clip: '{report.asset_name}' | {len(report.segments)} Speech Segments | "
+            f"✂️ {len(report.cut_proposals)} Smart Cuts Proposed (Saved {report.total_silence_time:.1f}s Silence)"
         )
 
         # 1. Render Transcripts Table

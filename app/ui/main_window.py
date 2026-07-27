@@ -134,6 +134,8 @@ class MainWindow(QMainWindow):
         else:
             self.mediapool_view.update_mediapool_structure(None)
 
+        self.analyzer_view.update_resolve_state(state)
+
     def on_connection_state_changed(self, connected: bool) -> None:
         """Sync UI widgets when Resolve connection state changes."""
         self.app_toolbar.update_connection_status(connected)
