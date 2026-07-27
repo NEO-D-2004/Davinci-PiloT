@@ -36,10 +36,16 @@ class ConfigLoader:
 
     @property
     def resolve_script_api(self) -> str:
-        return os.getenv(
-            "RESOLVE_SCRIPT_API",
-            r"C:\Program Files\Blackmagic Design\DaVinci Resolve\Developer\Scripting"
-        )
+        # Check primary Windows ProgramData location first
+        progdata_path = r"C:\ProgramData\Blackmagic Design\DaVinci Resolve\Support\Developer\Scripting"
+        progfiles_path = r"C:\Program Files\Blackmagic Design\DaVinci Resolve\Developer\Scripting"
+        
+        if Path(progdata_path).exists():
+            default_path = progdata_path
+        else:
+            default_path = progfiles_path
+
+        return os.getenv("RESOLVE_SCRIPT_API", default_path)
 
     @property
     def resolve_script_lib(self) -> str:

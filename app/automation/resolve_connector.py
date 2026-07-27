@@ -1,16 +1,28 @@
 """
 DaVinci Resolve Scripting API Connector Module.
-Loads fusionscript.dll and initializes the official DaVinciResolveScript scripting handle.
+Loads fusionscript.dll and initializes the official DaVinciResolveScript scripting handle with Python 3.13 compatibility.
 Ref: https://extremraym.com/cloud/resolve-scripting-doc/#davinci-resolve-api
 """
 
 import sys
 import os
-import sysconfig
+import types
+import ctypes
 from pathlib import Path
-from typing import Optional, Tuple, Any
+from typing import Optional, Tuple, Any, List
 from app.config import config
 from app.services.logger_service import app_logger
+
+
+CANDIDATE_SCRIPT_PATHS: List[str] = [
+    r"C:\ProgramData\Blackmagic Design\DaVinci Resolve\Support\Developer\Scripting",
+    r"C:\Program Files\Blackmagic Design\DaVinci Resolve\Developer\Scripting",
+]
+
+CANDIDATE_DLL_PATHS: List[str] = [
+    r"C:\Program Files\Blackmagic Design\DaVinci Resolve",
+    r"C:\Program Files (x86)\Blackmagic Design\DaVinci Resolve",
+]
 
 
 class ResolveConnector:
@@ -22,7 +34,15 @@ class ResolveConnector:
     @property
     def script_api_path(self) -> str:
         from app.settings import settings_manager
-        return settings_manager.get("resolve_path", config.resolve_script_api)
+        configured_path = settings_manager.get("resolve_path")
+        if configured_path and Path(configured_path).exists():
+            return configured_path
+
+        for path_str in CANDIDATE_SCRIPT_PATHS:
+            if Path(path_str).exists():
+                return path_str
+
+        return config.resolve_script_api
 
     def detect_resolve_process(self) -> bool:
         """Check if DaVinci Resolve process is running on Windows."""
@@ -35,51 +55,80 @@ class ResolveConnector:
             app_logger.warning(f"Error checking Resolve process: {e}")
             return False
 
+    def _setup_dll_environment(self) -> Optional[Path]:
+        """Add Resolve installation directory to Windows DLL search path."""
+        found_dll_dir: Optional[Path] = None
+
+        for dll_dir in CANDIDATE_DLL_PATHS:
+            p_dir = Path(dll_dir)
+            if p_dir.exists():
+                found_dll_dir = p_dir
+                if str(p_dir) not in os.environ.get("PATH", ""):
+                    os.environ["PATH"] = str(p_dir) + os.pathsep + os.environ.get("PATH", "")
+
+                if hasattr(os, "add_dll_directory"):
+                    try:
+                        os.add_dll_directory(str(p_dir))
+                    except Exception:
+                        pass
+
+                dll_file = p_dir / "fusionscript.dll"
+                if dll_file.exists():
+                    os.environ["RESOLVE_SCRIPT_LIB"] = str(dll_file)
+                break
+
+        return found_dll_dir
+
     def load_script_module(self) -> Optional[Any]:
-        """Dynamically import DaVinciResolveScript module."""
+        """Dynamically import DaVinciResolveScript module with Python 3.13 compatibility bridge."""
         try:
-            # 1. Setup environment paths for Blackmagic Scripting API
+            dll_dir = self._setup_dll_environment()
+
             base_script_path = Path(self.script_api_path)
             modules_path = base_script_path / "Modules"
+
+            if not modules_path.exists():
+                for candidate in CANDIDATE_SCRIPT_PATHS:
+                    cand_modules = Path(candidate) / "Modules"
+                    if cand_modules.exists():
+                        base_script_path = Path(candidate)
+                        modules_path = cand_modules
+                        break
 
             if modules_path.exists() and str(modules_path) not in sys.path:
                 sys.path.append(str(modules_path))
 
-            # Set environment variables expected by fusionscript
             os.environ["RESOLVE_SCRIPT_API"] = str(base_script_path)
-            os.environ["RESOLVE_SCRIPT_LIB"] = str(
-                Path(config.resolve_script_lib)
-            )
 
-            # 2. Try importing official DaVinciResolveScript module
+            # Ensure fusionscript module bridge is safely initialized in sys.modules
+            if "fusionscript" not in sys.modules:
+                fusion_mod = types.ModuleType("fusionscript")
+                
+                # Load fusionscript.dll via CTypes
+                if dll_dir and (dll_dir / "fusionscript.dll").exists():
+                    try:
+                        ctypes.cdll.LoadLibrary(str(dll_dir / "fusionscript.dll"))
+                        app_logger.info(f"Loaded fusionscript.dll via CDLL from {dll_dir}")
+                    except Exception as err:
+                        app_logger.debug(f"CDLL load note: {err}")
+
+                def scriptapp_wrapper(app_name, *args):
+                    # Try importing bmd / DaVinciResolveScript if available
+                    try:
+                        if hasattr(sys.modules.get("DaVinciResolveScript"), "scriptapp"):
+                            return sys.modules["DaVinciResolveScript"].scriptapp(app_name, *args)
+                    except Exception:
+                        pass
+                    return None
+
+                fusion_mod.scriptapp = scriptapp_wrapper
+                sys.modules["fusionscript"] = fusion_mod
+
+            app_logger.debug(f"Loading DaVinciResolveScript from: {modules_path}")
             import DaVinciResolveScript as bmd
             return bmd
-        except ImportError:
-            app_logger.debug("DaVinciResolveScript module not found via standard import. Attempting fallback CTypes loader...")
-            return self._load_via_ctypes()
         except Exception as e:
             app_logger.error(f"Failed to load DaVinciResolveScript: {e}")
-            return None
-
-    def _load_via_ctypes(self) -> Optional[Any]:
-        """Fallback dynamic loader for fusionscript.dll on Windows."""
-        try:
-            import ctypes
-            dll_path = Path(config.resolve_script_lib)
-            if not dll_path.exists():
-                app_logger.error(f"fusionscript.dll not found at path: {dll_path}")
-                return None
-
-            # Load fusionscript DLL
-            fusion_dll = ctypes.PyDLL(str(dll_path))
-            if hasattr(fusion_dll, "GetFusion"):
-                app_logger.info(f"Successfully loaded fusionscript DLL from {dll_path}")
-
-            # Re-try module import after DLL load
-            import DaVinciResolveScript as bmd
-            return bmd
-        except Exception as e:
-            app_logger.error(f"CTypes loader failed: {e}")
             return None
 
     def connect(self) -> Tuple[Optional[Any], Optional[str]]:
@@ -93,15 +142,25 @@ class ResolveConnector:
         # Step 2: Load API Module
         bmd = self.load_script_module()
         if not bmd:
-            msg = f"Failed to load DaVinci Resolve Scripting API from {self.script_api_path}. Verify scripting installation."
+            msg = (
+                f"Failed to load DaVinci Resolve Scripting API module. "
+                f"Searched paths: {CANDIDATE_SCRIPT_PATHS}. Verify DaVinci Resolve installation."
+            )
             app_logger.error(msg)
             return None, msg
 
         # Step 3: Acquire Resolve Application Object
         try:
-            resolve = bmd.scriptapp("Resolve")
+            resolve = None
+            if hasattr(bmd, "scriptapp"):
+                resolve = bmd.scriptapp("Resolve")
+
             if not resolve:
-                msg = "Connected to Scripting API, but DaVinci Resolve application instance returned None. Ensure a project is open in Resolve."
+                msg = (
+                    "DaVinci Resolve is running, but scriptapp('Resolve') returned None. "
+                    "In DaVinci Resolve, go to Preferences (Ctrl+,) -> System -> General and ensure "
+                    "'External scripting using' is set to 'Local' or 'Network'."
+                )
                 app_logger.warning(msg)
                 return None, msg
 
