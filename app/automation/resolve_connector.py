@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Optional, Tuple, Any, List
 from app.config import config
 from app.services.logger_service import app_logger
+from app.automation.bridge_installer import install_resolve_bridge
 
 
 CANDIDATE_SCRIPT_PATHS: List[str] = [
@@ -30,6 +31,8 @@ class ResolveConnector:
 
     def __init__(self) -> None:
         self._resolve_app: Optional[Any] = None
+        # Auto-deploy bridge script for Resolve Free / Studio support
+        install_resolve_bridge()
 
     @property
     def script_api_path(self) -> str:
@@ -113,7 +116,6 @@ class ResolveConnector:
                         app_logger.debug(f"CDLL load note: {err}")
 
                 def scriptapp_wrapper(app_name, *args):
-                    # Try importing bmd / DaVinciResolveScript if available
                     try:
                         if hasattr(sys.modules.get("DaVinciResolveScript"), "scriptapp"):
                             return sys.modules["DaVinciResolveScript"].scriptapp(app_name, *args)
@@ -157,9 +159,9 @@ class ResolveConnector:
 
             if not resolve:
                 msg = (
-                    "DaVinci Resolve is running, but scriptapp('Resolve') returned None. "
-                    "In DaVinci Resolve, go to Preferences (Ctrl+,) -> System -> General and ensure "
-                    "'External scripting using' is set to 'Local' or 'Network'."
+                    "DaVinci Resolve 21 process detected! "
+                    "We have automatically installed the DaVinci PiloT Bridge script. "
+                    "In DaVinci Resolve, click Workspace -> Scripts -> Utility -> DaVinciPiloT_Bridge to authorize connection."
                 )
                 app_logger.warning(msg)
                 return None, msg
