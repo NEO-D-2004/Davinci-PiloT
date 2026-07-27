@@ -1,15 +1,17 @@
 """
 Main Window for DaVinci PiloT.
-Assembles MenuBar, ToolBar, StatusBar, DashboardView, and NotificationCenter.
+Assembles MenuBar, ToolBar, StatusBar, DashboardView, TimelineView, and NotificationCenter.
 """
 
 from pathlib import Path
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QMainWindow, QMessageBox, QWidget, QVBoxLayout
+from PySide6.QtWidgets import QMainWindow, QMessageBox, QWidget, QVBoxLayout, QTabWidget
 from app.ui.components import AppMenuBar, AppToolBar, AppStatusBar, NotificationCenter, NotificationType
 from app.ui.views import DashboardView, SettingsDialog
+from app.ui.views.timeline_view import TimelineView
 from app.viewmodels import MainViewModel
+from app.models.resolve_models import ResolveState
 from app.services.logger_service import app_logger
 
 
@@ -20,7 +22,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.viewModel = viewModel
         self.setWindowTitle("DaVinci PiloT - AI Copilot for DaVinci Resolve")
-        self.resize(1280, 800)
+        self.resize(1340, 860)
         self.setMinimumSize(960, 600)
         
         self.notification_center = NotificationCenter(self)
@@ -41,9 +43,42 @@ class MainWindow(QMainWindow):
         self.app_status_bar = AppStatusBar(self)
         self.setStatusBar(self.app_status_bar)
 
-        # Central View
+        # Central View Container with Tabs (Command Center & Timeline Explorer)
+        self.main_tabs = QTabWidget(self)
+        self.main_tabs.setStyleSheet("""
+            QTabWidget::pane {
+                border: 1px solid #313244;
+                background-color: #11111B;
+            }
+            QTabBar::tab {
+                background-color: #181825;
+                color: #A6ADC8;
+                padding: 10px 24px;
+                border-top-left-radius: 6px;
+                border-top-right-radius: 6px;
+                margin-right: 4px;
+                font-weight: 600;
+                font-size: 13px;
+            }
+            QTabBar::tab:selected {
+                background-color: #1E1E2E;
+                color: #89B4FA;
+                border-bottom: 3px solid #89B4FA;
+            }
+            QTabBar::tab:hover {
+                color: #CDD6F4;
+            }
+        """)
+
+        # Tab 1: Dashboard Command Center
         self.dashboard_view = DashboardView(self)
-        self.setCentralWidget(self.dashboard_view)
+        self.main_tabs.addTab(self.dashboard_view, "🖥️ Command Center")
+
+        # Tab 2: Timeline Explorer
+        self.timeline_view = TimelineView(self)
+        self.main_tabs.addTab(self.timeline_view, "🎬 Timeline Explorer")
+
+        self.setCentralWidget(self.main_tabs)
 
     def _load_stylesheet(self) -> None:
         """Load QSS dark theme stylesheet."""
@@ -70,13 +105,21 @@ class MainWindow(QMainWindow):
 
         # ViewModel State Signals
         self.viewModel.connection_state_changed.connect(self.on_connection_state_changed)
-        self.viewModel.resolve_state_updated.connect(self.dashboard_view.update_resolve_state)
+        self.viewModel.resolve_state_updated.connect(self.on_resolve_state_updated)
         self.viewModel.status_message_changed.connect(self.app_status_bar.show_message)
         self.viewModel.notification_emitted.connect(self.handle_notification_signal)
         self.viewModel.ai_provider_changed.connect(self.app_status_bar.set_ai_provider)
 
         # Initial ViewModel sync
         self.app_status_bar.set_ai_provider(self.viewModel.ai_provider)
+
+    def on_resolve_state_updated(self, state: ResolveState) -> None:
+        """Update both Dashboard and Timeline Explorer when ResolveState changes."""
+        self.dashboard_view.update_resolve_state(state)
+        if state.is_connected and state.timeline_structure:
+            self.timeline_view.update_timeline_structure(state.timeline_structure)
+        else:
+            self.timeline_view.update_timeline_structure(None)
 
     def on_connection_state_changed(self, connected: bool) -> None:
         """Sync UI widgets when Resolve connection state changes."""
@@ -108,7 +151,7 @@ class MainWindow(QMainWindow):
         QMessageBox.about(
             self,
             "About DaVinci PiloT",
-            "<h3>DaVinci PiloT v0.1.0</h3>"
+            "<h3>DaVinci PiloT v0.3.0</h3>"
             "<p>An AI-powered desktop copilot that automates editing inside DaVinci Resolve "
             "using the official Resolve Scripting API.</p>"
             "<p><b>Architecture:</b> PySide6 (Qt) + Python 3.13+ + MVVM</p>"

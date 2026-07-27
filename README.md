@@ -17,9 +17,14 @@
 - **Official Resolve Scripting API loader**: Dynamic loading of `fusionscript.dll` and `DaVinciResolveScript` module (`bmd.scriptapp("Resolve")`).
 - **Process & Instance Detection**: Checks if `Resolve.exe` is running on Windows and handles missing application handles gracefully.
 - **Current Project & Timeline Queries**: Live querying of Active Project Name, Resolution, Frame Rate, Timelines Count, Active Timeline Name, Video/Audio Tracks Count, and Total Clips.
-- **Media Pool Queries**: Live inspection of Root Bin Name, Subfolders Count, and Total Clips.
-- **Non-Blocking QThread Worker**: Connection handshakes and polling execute off the main Qt thread (`ResolveConnectWorker`) preventing UI freezes.
-- **Real-Time Dashboard & Status Synchronization**: Dynamic metric card updates on `DashboardView`, live status badges on `AppToolBar` (`● Resolve Connected` / `● Resolve Disconnected`), and Toast Notifications.
+- **Zero-Click Local Bridge HTTP Server**: `http://127.0.0.1:18888` server accepting real-time state payloads from `DaVinciPiloT_Bridge` script inside DaVinci Resolve 21 Free & Studio.
+
+### Milestone 3: Timeline Explorer
+- **Deep Timeline Structure Parsing**: Extracts Video/Audio Tracks (`V1`, `V2`, `A1`...), Clip items (`start_frame`, `end_frame`, `duration_frames`, `left_offset`, `right_offset`), Media Pool source file paths, flag colors, and clip colors.
+- **Interactive Visual Track Lanes**: Stacked track view displaying color-coded clip blocks with hover tooltips and clip duration indicators.
+- **Master Clip Table**: Searchable and filterable master table displaying Clip Name, Track, Start-End Frames, Duration, Source File Path, and Flags.
+- **Timeline Markers Panel**: Detailed table of timeline markers displaying frame indices, timecodes, color badges, marker names, and notes.
+- **Real-Time Clip Filter Engine**: Instant client-side search box and track filter dropdowns (All Tracks, Video Only, Audio Only).
 
 ---
 
@@ -28,7 +33,7 @@
 - **Language**: Python 3.13+
 - **GUI Framework**: PySide6 (Qt 6)
 - **Architecture**: MVVM (Model-View-ViewModel)
-- **Automation**: DaVinci Resolve Scripting API (`fusionscript.dll`)
+- **Automation**: DaVinci Resolve Scripting API (`fusionscript.dll` & HTTP Bridge)
 - **AI Infrastructure**: NVIDIA NIM Microservices (`build.nvidia.com`)
 - **Database**: SQLite (`app.db`)
 - **Configuration & Settings**: `.env` & JSON (`user_settings.json`)
@@ -49,11 +54,15 @@ Davinci-PiloT/
 │   │   └── pipeline.py
 │   ├── assets/styles/dark_theme.qss
 │   ├── automation/
+│   │   ├── bridge_installer.py
+│   │   ├── bridge_server.py
 │   │   ├── resolve_api.py
 │   │   └── resolve_connector.py
 │   ├── config/config_loader.py
 │   ├── database/db_manager.py
-│   ├── models/resolve_models.py
+│   ├── models/
+│   │   ├── resolve_models.py
+│   │   └── timeline_models.py
 │   ├── services/
 │   │   ├── logger_service.py
 │   │   └── resolve_service.py
@@ -66,7 +75,8 @@ Davinci-PiloT/
 │   │   │   └── toolbar.py
 │   │   ├── views/
 │   │   │   ├── dashboard_view.py
-│   │   │   └── settings_view.py
+│   │   │   ├── settings_view.py
+│   │   │   └── timeline_view.py
 │   │   ├── main_window.py
 │   │   └── splash_screen.py
 │   ├── viewmodels/main_viewmodel.py
@@ -77,6 +87,7 @@ Davinci-PiloT/
 │   ├── test_database.py
 │   ├── test_resolve_service.py
 │   ├── test_settings.py
+│   ├── test_timeline.py
 │   └── test_ui.py
 ├── .env.example
 ├── build_exe.py

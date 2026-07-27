@@ -7,8 +7,9 @@ and command execution callbacks from DaVinciPiloT_Bridge script running inside D
 import json
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from typing import Optional, Dict, Any, Callable
+from typing import Optional, Dict, Any, Callable, List
 from app.models.resolve_models import ResolveState, ProjectInfo, TimelineInfo, MediaPoolInfo
+from app.models.timeline_models import TimelineStructure, TrackInfo, ClipItem, TimelineMarker
 from app.services.logger_service import app_logger
 
 BRIDGE_PORT = 18888
@@ -17,11 +18,119 @@ _server_thread: Optional[threading.Thread] = None
 _state_callback: Optional[Callable[[ResolveState], None]] = None
 
 
+def parse_timeline_structure(ts_data: Dict[str, Any]) -> TimelineStructure:
+    """Helper to convert JSON dictionary into TimelineStructure object graph."""
+    if not ts_data:
+        return TimelineStructure()
+
+    video_tracks: List[TrackInfo] = []
+    for vt in ts_data.get("video_tracks", []):
+        clips: List[ClipItem] = []
+        for c in vt.get("clips", []):
+            markers = [
+                TimelineMarker(
+                    frame=m.get("frame", 0),
+                    timecode=m.get("timecode", "0"),
+                    color=m.get("color", "Blue"),
+                    name=m.get("name", ""),
+                    note=m.get("note", ""),
+                    duration=m.get("duration", 1)
+                ) for m in c.get("markers", [])
+            ]
+            clips.append(
+                ClipItem(
+                    clip_id=c.get("clip_id", ""),
+                    name=c.get("name", "Untitled Clip"),
+                    track_type="video",
+                    track_index=c.get("track_index", 1),
+                    start_frame=c.get("start_frame", 0),
+                    end_frame=c.get("end_frame", 0),
+                    duration_frames=c.get("duration_frames", 0),
+                    start_timecode=c.get("start_timecode", "00:00:00:00"),
+                    end_timecode=c.get("end_timecode", "00:00:00:00"),
+                    duration_timecode=c.get("duration_timecode", "00:00:00:00"),
+                    left_offset=c.get("left_offset", 0),
+                    right_offset=c.get("right_offset", 0),
+                    source_path=c.get("source_path", "N/A"),
+                    flag_color=c.get("flag_color", "None"),
+                    clip_color=c.get("clip_color", "Default"),
+                    markers=markers
+                )
+            )
+        video_tracks.append(
+            TrackInfo(
+                track_type="video",
+                track_index=vt.get("track_index", 1),
+                name=vt.get("name", "Video Track"),
+                is_enabled=vt.get("is_enabled", True),
+                is_locked=vt.get("is_locked", False),
+                clips=clips
+            )
+        )
+
+    audio_tracks: List[TrackInfo] = []
+    for at in ts_data.get("audio_tracks", []):
+        clips: List[ClipItem] = []
+        for c in at.get("clips", []):
+            clips.append(
+                ClipItem(
+                    clip_id=c.get("clip_id", ""),
+                    name=c.get("name", "Untitled Audio Clip"),
+                    track_type="audio",
+                    track_index=c.get("track_index", 1),
+                    start_frame=c.get("start_frame", 0),
+                    end_frame=c.get("end_frame", 0),
+                    duration_frames=c.get("duration_frames", 0),
+                    start_timecode=c.get("start_timecode", "00:00:00:00"),
+                    end_timecode=c.get("end_timecode", "00:00:00:00"),
+                    duration_timecode=c.get("duration_timecode", "00:00:00:00"),
+                    left_offset=c.get("left_offset", 0),
+                    right_offset=c.get("right_offset", 0),
+                    source_path=c.get("source_path", "N/A"),
+                    flag_color=c.get("flag_color", "None"),
+                    clip_color=c.get("clip_color", "Default"),
+                    markers=[]
+                )
+            )
+        audio_tracks.append(
+            TrackInfo(
+                track_type="audio",
+                track_index=at.get("track_index", 1),
+                name=at.get("name", "Audio Track"),
+                is_enabled=at.get("is_enabled", True),
+                is_locked=at.get("is_locked", False),
+                clips=clips
+            )
+        )
+
+    markers: List[TimelineMarker] = [
+        TimelineMarker(
+            frame=m.get("frame", 0),
+            timecode=m.get("timecode", "0"),
+            color=m.get("color", "Blue"),
+            name=m.get("name", ""),
+            note=m.get("note", ""),
+            duration=m.get("duration", 1)
+        ) for m in ts_data.get("markers", [])
+    ]
+
+    return TimelineStructure(
+        name=ts_data.get("name", "Timeline"),
+        start_timecode=ts_data.get("start_timecode", "01:00:00:00"),
+        duration_frames=ts_data.get("duration_frames", 0),
+        duration_timecode=ts_data.get("duration_timecode", "00:00:00:00"),
+        fps=float(ts_data.get("fps", 24.0)),
+        video_tracks=video_tracks,
+        audio_tracks=audio_tracks,
+        markers=markers
+    )
+
+
 class BridgeRequestHandler(BaseHTTPRequestHandler):
     """Handles HTTP POST state sync requests from DaVinciPiloT_Bridge inside Resolve."""
 
     def log_message(self, format: str, *args: Any) -> None:
-        # Suppress default HTTP request logging to clean stdout
+        # Suppress default HTTP request logging
         pass
 
     def do_OPTIONS(self) -> None:
@@ -78,6 +187,10 @@ class BridgeRequestHandler(BaseHTTPRequestHandler):
                     total_clips_count=m_data.get("total_clips_count", 0)
                 )
 
+                # Parse TimelineStructure
+                ts_data = data.get("timeline_structure", {})
+                timeline_struct = parse_timeline_structure(ts_data)
+
                 state = ResolveState(
                     is_connected=True,
                     resolve_version=data.get("resolve_version", "21.0"),
@@ -85,10 +198,15 @@ class BridgeRequestHandler(BaseHTTPRequestHandler):
                     project=project,
                     timeline=timeline,
                     media_pool=media_pool,
+                    timeline_structure=timeline_struct,
                     error_message=None
                 )
 
-                app_logger.info(f"Received live state from DaVinci PiloT Bridge: Project='{project.name}', Timeline='{timeline.name}' ({timeline.total_clips} clips)")
+                app_logger.info(
+                    f"Received live state from DaVinci PiloT Bridge: Project='{project.name}', "
+                    f"Timeline='{timeline.name}' ({timeline_struct.total_clips} clips across "
+                    f"{len(timeline_struct.video_tracks)}V / {len(timeline_struct.audio_tracks)}A tracks)"
+                )
 
                 # Invoke UI update callback
                 if _state_callback:

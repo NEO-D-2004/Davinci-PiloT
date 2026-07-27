@@ -67,6 +67,9 @@ class MediaPoolInfo:
         }
 
 
+from app.models.timeline_models import TimelineStructure
+
+
 @dataclass
 class ResolveState:
     """Aggregated DaVinci Resolve state model."""
@@ -77,3 +80,5 @@ class ResolveState:
     project: ProjectInfo = field(default_factory=ProjectInfo)
     timeline: TimelineInfo = field(default_factory=TimelineInfo)
     media_pool: MediaPoolInfo = field(default_factory=MediaPoolInfo)
+    timeline_structure: Optional[TimelineStructure] = None
+
