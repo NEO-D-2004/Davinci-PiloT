@@ -1,6 +1,6 @@
 """
 Main Window for DaVinci PiloT.
-Assembles MenuBar, ToolBar, StatusBar, DashboardView, TimelineView, MediaPoolView, AnalyzerView, and NotificationCenter.
+Assembles MenuBar, ToolBar, StatusBar, DashboardView, TimelineView, MediaPoolView, AnalyzerView, CopilotChatView, and NotificationCenter.
 """
 
 from pathlib import Path
@@ -8,7 +8,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QMainWindow, QMessageBox, QWidget, QVBoxLayout, QTabWidget
 from app.ui.components import AppMenuBar, AppToolBar, AppStatusBar, NotificationCenter, NotificationType
-from app.ui.views import DashboardView, SettingsDialog, TimelineView, MediaPoolView, AnalyzerView
+from app.ui.views import DashboardView, SettingsDialog, TimelineView, MediaPoolView, AnalyzerView, CopilotChatView
 from app.viewmodels import MainViewModel
 from app.models.resolve_models import ResolveState
 from app.services.logger_service import app_logger
@@ -83,7 +83,11 @@ class MainWindow(QMainWindow):
 
         # Tab 4: AI Analyzer
         self.analyzer_view = AnalyzerView(self)
-        self.main_tabs.addTab(self.analyzer_view, "🤖 AI Analyzer")
+        self.main_tabs.addTab(self.analyzer_view, "🔬 AI Analyzer")
+
+        # Tab 5: AI Copilot Chat (Milestone 6)
+        self.copilot_view = CopilotChatView(self)
+        self.main_tabs.addTab(self.copilot_view, "🤖 AI Copilot")
 
         self.setCentralWidget(self.main_tabs)
 
@@ -135,6 +139,7 @@ class MainWindow(QMainWindow):
             self.mediapool_view.update_mediapool_structure(None)
 
         self.analyzer_view.update_resolve_state(state)
+        self.copilot_view.update_resolve_state(state)
 
     def on_connection_state_changed(self, connected: bool) -> None:
         """Sync UI widgets when Resolve connection state changes."""
@@ -158,15 +163,21 @@ class MainWindow(QMainWindow):
         dialog.exec()
 
     def open_ai_chat(self) -> None:
-        """Quick trigger for AI Chat (Milestone 6)."""
-        self.notification_center.info("AI Chat Panel will be fully integrated in Milestone 6.")
+        """Switch to the AI Copilot Chat tab (Milestone 6)."""
+        # Find the AI Copilot tab index and switch to it
+        for i in range(self.main_tabs.count()):
+            if "Copilot" in self.main_tabs.tabText(i):
+                self.main_tabs.setCurrentIndex(i)
+                return
+        # Fallback if tab not found
+        self.notification_center.info("AI Copilot tab not found.")
 
     def show_about_dialog(self) -> None:
         """Display About dialog."""
         QMessageBox.about(
             self,
             "About DaVinci PiloT",
-            "<h3>DaVinci PiloT v0.5.0</h3>"
+            "<h3>DaVinci PiloT v0.6.0</h3>"
             "<p>An AI-powered desktop copilot that automates editing inside DaVinci Resolve "
             "using the official Resolve Scripting API.</p>"
             "<p><b>Architecture:</b> PySide6 (Qt) + Python 3.13+ + MVVM</p>"
