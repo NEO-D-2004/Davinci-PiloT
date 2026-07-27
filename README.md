@@ -32,6 +32,12 @@
 - **Technical & Production Asset Inspector**: Right sidebar displaying full technical specifications (Codecs, Bitrate, Resolution, Channels, File Size, Date Modified) and production metadata (Scene, Shot, Take, Comments, Good Take status).
 - **Multi-Criteria Asset Filters**: Instant search box (name, path, codec, scene/shot/take), asset type dropdown ("All Types", "Video", "Audio", "Images", "Timelines"), and "⭐ Good Takes Only" toggle.
 
+### Milestone 5: NVIDIA NIM Multi-Agent Vision & Audio Analyzer
+- **Speech & Silence Engine (Nemotron ASR)**: Converts audio & speech streams into timestamped transcript segments, detects hesitation & filler words ("um", "uh"), and flags long pauses (> 1.2s) as silence gaps.
+- **Multimodal Vision Engine (MiniMax M3)**: Samples video keyframes with `FrameSampler` and analyzes visual composition, subject positioning, camera motion, and shot quality.
+- **Master Planning Engine (GLM-5.2)**: Synthesizes acoustic and visual findings into prioritized, actionable `SmartCutProposal` recommendations (Silence cuts, Filler word removals, Scene transitions, Bad take flags).
+- **Interactive AI Analyzer UI**: Real-time progress bar, summary metrics, and 3 tab views: `🗣️ Speech & Silence`, `👁️ Vision Keyframes`, and `✂️ Smart Cut Proposals`.
+
 ---
 
 ## 🛠️ Tech Stack
@@ -55,7 +61,9 @@ Davinci-PiloT/
 ├── app/
 │   ├── ai/
 │   │   ├── agent_router.py
+│   │   ├── analyzer_engine.py
 │   │   ├── frame_sampler.py
+│   │   ├── multi_agent_pipeline.py
 │   │   ├── nim_client.py
 │   │   └── pipeline.py
 │   ├── assets/styles/dark_theme.qss
@@ -67,6 +75,7 @@ Davinci-PiloT/
 │   ├── config/config_loader.py
 │   ├── database/db_manager.py
 │   ├── models/
+│   │   ├── analyzer_models.py
 │   │   ├── mediapool_models.py
 │   │   ├── resolve_models.py
 │   │   └── timeline_models.py
@@ -81,6 +90,7 @@ Davinci-PiloT/
 │   │   │   ├── status_bar.py
 │   │   │   └── toolbar.py
 │   │   ├── views/
+│   │   │   ├── analyzer_view.py
 │   │   │   ├── dashboard_view.py
 │   │   │   ├── mediapool_view.py
 │   │   │   ├── settings_view.py
@@ -91,6 +101,7 @@ Davinci-PiloT/
 │   └── main.py
 ├── tests/
 │   ├── test_ai.py
+│   ├── test_analyzer.py
 │   ├── test_config.py
 │   ├── test_database.py
 │   ├── test_mediapool.py

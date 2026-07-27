@@ -1,6 +1,6 @@
 """
 Main Window for DaVinci PiloT.
-Assembles MenuBar, ToolBar, StatusBar, DashboardView, TimelineView, MediaPoolView, and NotificationCenter.
+Assembles MenuBar, ToolBar, StatusBar, DashboardView, TimelineView, MediaPoolView, AnalyzerView, and NotificationCenter.
 """
 
 from pathlib import Path
@@ -8,7 +8,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QMainWindow, QMessageBox, QWidget, QVBoxLayout, QTabWidget
 from app.ui.components import AppMenuBar, AppToolBar, AppStatusBar, NotificationCenter, NotificationType
-from app.ui.views import DashboardView, SettingsDialog, TimelineView, MediaPoolView
+from app.ui.views import DashboardView, SettingsDialog, TimelineView, MediaPoolView, AnalyzerView
 from app.viewmodels import MainViewModel
 from app.models.resolve_models import ResolveState
 from app.services.logger_service import app_logger
@@ -21,7 +21,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.viewModel = viewModel
         self.setWindowTitle("DaVinci PiloT - AI Copilot for DaVinci Resolve")
-        self.resize(1380, 880)
+        self.resize(1420, 900)
         self.setMinimumSize(960, 600)
         
         self.notification_center = NotificationCenter(self)
@@ -80,6 +80,10 @@ class MainWindow(QMainWindow):
         # Tab 3: Media Pool Manager
         self.mediapool_view = MediaPoolView(self)
         self.main_tabs.addTab(self.mediapool_view, "📁 Media Pool Manager")
+
+        # Tab 4: AI Analyzer
+        self.analyzer_view = AnalyzerView(self)
+        self.main_tabs.addTab(self.analyzer_view, "🤖 AI Analyzer")
 
         self.setCentralWidget(self.main_tabs)
 
@@ -160,7 +164,7 @@ class MainWindow(QMainWindow):
         QMessageBox.about(
             self,
             "About DaVinci PiloT",
-            "<h3>DaVinci PiloT v0.4.0</h3>"
+            "<h3>DaVinci PiloT v0.5.0</h3>"
             "<p>An AI-powered desktop copilot that automates editing inside DaVinci Resolve "
             "using the official Resolve Scripting API.</p>"
             "<p><b>Architecture:</b> PySide6 (Qt) + Python 3.13+ + MVVM</p>"
